@@ -44,56 +44,90 @@ class VoiceActivityDetector:
         # Ring buffer for smoothing
         self.ring_buffer = collections.deque(maxlen=10)
         self.triggered = False
+        
+        # Audio buffer for accumulating incoming audio chunks
+        self.audio_buffer = b''
 
         self.logger.info(f"VAD initialized: sample_rate={sample_rate}, "
-                         f"frame_duration={frame_duration}ms, mode={mode}")
+                         f"frame_duration={frame_duration}ms, mode={mode}, "
+                         f"frame_size={self.frame_size} samples ({self.frame_size * 2} bytes)")
 
     def is_speech(self, audio_frame: bytes) -> bool:
         """
         Check if the audio frame contains speech.
 
         Args:
-            audio_frame: Audio frame data (PCM 16-bit)
+            audio_frame: Audio frame data (PCM 16-bit), must be exactly the right size
 
         Returns:
             True if speech is detected, False otherwise
         """
+        expected_bytes = self.frame_size * 2  # 2 bytes per sample for 16-bit PCM
+        
+        if len(audio_frame) != expected_bytes:
+            self.logger.error(f"Invalid frame size: got {len(audio_frame)} bytes, expected {expected_bytes} bytes")
+            return False
+        
         try:
             return self.vad.is_speech(audio_frame, self.sample_rate)
         except Exception as e:
-            self.logger.error(f"Error in VAD processing: {e}")
+            self.logger.error(f"Error in VAD processing: {e} (frame size: {len(audio_frame)} bytes)")
             return False
 
-    def process_frame(self, audio_frame: bytes) -> tuple[bool, bool]:
+    def process_frame(self, audio_chunk: bytes) -> tuple[bool, bool]:
         """
-        Process an audio frame with smoothing to detect speech start/stop.
+        Process an audio chunk with smoothing to detect speech start/stop.
+        
+        This method handles variable-sized audio chunks by buffering them and
+        extracting properly-sized frames for VAD processing.
 
         Args:
-            audio_frame: Audio frame data (PCM 16-bit)
+            audio_chunk: Audio chunk data (PCM 16-bit), can be any size
 
         Returns:
             Tuple of (is_speaking, voice_detected)
             - is_speaking: Current speaking state
             - voice_detected: True if voice activity changed
         """
-        is_speech = self.is_speech(audio_frame)
-        self.ring_buffer.append((audio_frame, is_speech))
-
-        num_voiced = len([f for f, speech in self.ring_buffer if speech])
+        # Add incoming audio to buffer
+        self.audio_buffer += audio_chunk
+        
+        # Calculate required frame size in bytes
+        required_bytes = self.frame_size * 2  # 2 bytes per sample for 16-bit PCM
+        
+        # Prevent buffer from growing indefinitely (keep max 10 frames worth)
+        max_buffer_size = required_bytes * 10
+        if len(self.audio_buffer) > max_buffer_size:
+            # Keep only the most recent data
+            self.audio_buffer = self.audio_buffer[-max_buffer_size:]
+            self.logger.debug(f"Buffer trimmed to {len(self.audio_buffer)} bytes")
+        
         voice_detected = False
+        
+        # Process all complete frames in the buffer
+        while len(self.audio_buffer) >= required_bytes:
+            # Extract one frame
+            frame = self.audio_buffer[:required_bytes]
+            self.audio_buffer = self.audio_buffer[required_bytes:]
+            
+            # Check for speech in this frame
+            is_speech = self.is_speech(frame)
+            self.ring_buffer.append((frame, is_speech))
 
-        # If we're not triggered and we have enough voiced frames, start recording
-        if not self.triggered:
-            if num_voiced > 0.8 * self.ring_buffer.maxlen:
-                self.triggered = True
-                voice_detected = True
-                self.logger.debug("Voice activity started")
-        # If we're triggered and we have mostly unvoiced frames, stop recording
-        else:
-            if num_voiced < 0.2 * self.ring_buffer.maxlen:
-                self.triggered = False
-                voice_detected = True
-                self.logger.debug("Voice activity stopped")
+            num_voiced = len([f for f, speech in self.ring_buffer if speech])
+
+            # If we're not triggered and we have enough voiced frames, start recording
+            if not self.triggered:
+                if num_voiced > 0.8 * self.ring_buffer.maxlen:
+                    self.triggered = True
+                    voice_detected = True
+                    self.logger.debug("Voice activity started")
+            # If we're triggered and we have mostly unvoiced frames, stop recording
+            else:
+                if num_voiced < 0.2 * self.ring_buffer.maxlen:
+                    self.triggered = False
+                    voice_detected = True
+                    self.logger.debug("Voice activity stopped")
 
         return self.triggered, voice_detected
 
@@ -103,6 +137,7 @@ class VoiceActivityDetector:
         """
         self.ring_buffer.clear()
         self.triggered = False
+        self.audio_buffer = b''
         self.logger.debug("VAD state reset")
 
     @property
