@@ -138,7 +138,8 @@ class MQTTHandler:
             # Try to parse as JSON
             try:
                 data = json.loads(payload)
-                response_text = data.get('response', data.get('text', payload))
+                # Support multiple possible field names: tts_text, response, text
+                response_text = data.get('tts_text', data.get('response', data.get('text', payload)))
             except json.JSONDecodeError:
                 # If not JSON, use the raw payload
                 response_text = payload
