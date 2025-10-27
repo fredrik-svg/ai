@@ -5,6 +5,7 @@ Transcribes audio to text locally.
 
 import logging
 import numpy as np
+import os
 from faster_whisper import WhisperModel
 from typing import Optional, List
 import io
@@ -48,10 +49,24 @@ class SpeechToText:
         """
         try:
             self.logger.info(f"Loading Whisper model '{self.model_size}'... This may take a while on first run.")
+            
+            # For CPU devices, explicitly set num_workers=1 to avoid threading issues
+            # and cpu_threads to optimize for single-threaded performance on embedded devices
+            model_kwargs = {
+                'device': self.device,
+                'compute_type': self.compute_type
+            }
+            
+            # Optimize for CPU-only devices like Raspberry Pi
+            if self.device == 'cpu':
+                # Use detected CPU count or conservative default of 2 for embedded devices
+                # On Raspberry Pi 5, os.cpu_count() typically returns 4 (quad-core)
+                model_kwargs['cpu_threads'] = os.cpu_count() or 2
+                model_kwargs['num_workers'] = 1
+            
             self.model = WhisperModel(
                 self.model_size,
-                device=self.device,
-                compute_type=self.compute_type
+                **model_kwargs
             )
             self.logger.info("Whisper model loaded successfully")
         except Exception as e:

@@ -222,6 +222,33 @@ arecord -d 5 test.wav
 aplay test.wav
 ```
 
+### Wake Word detektion är långsam eller missar aktivering
+Om du har svårt att få respons på wake word:
+
+1. **Justera känslighet**: Öka `sensitivity` värdet i `config.yaml` från 0.5 till 0.6-0.7
+   ```yaml
+   wake_word:
+     sensitivity: 0.7  # Högre värde = mer responsiv
+   ```
+
+2. **Kontrollera mikrofonplacering**: Se till att mikrofonen är tillräckligt nära och inte blockerad
+
+3. **Testa olika wake words**: Prova olika inbyggda wake words eller skapa ett anpassat
+
+4. **Kontrollera systembelastning**: Kör `top` för att se om CPU är överbelastad
+
+### ONNX Runtime GPU-varningar
+Om du ser varningar om GPU-enheter som inte hittas (t.ex. "GPU device discovery failed"):
+```
+[W:onnxruntime:Default, device_discovery.cc:164 DiscoverDevicesForPlatform] 
+GPU device discovery failed: device_discovery.cc:89 ReadFileContents 
+Failed to open file: "/sys/class/drm/card1/device/vendor"
+```
+
+Detta är normalt på CPU-baserade enheter som Raspberry Pi och kan ignoreras. 
+Systemet är konfigurerat att undertrycka dessa varningar automatiskt, men de 
+kan fortfarande visas vid första körningen. De påverkar inte funktionaliteten.
+
 ### MQTT-anslutningsproblem
 - Kontrollera att HiveMQ Cloud-credentials är korrekta
 - Verifiera att port 8883 är öppen i din firewall

@@ -4,6 +4,7 @@ Main application for the local voice-controlled AI assistant.
 Orchestrates all modules: Wake Word, VAD, STT, MQTT, and TTS.
 """
 
+import os
 import logging
 import sys
 import yaml
@@ -14,6 +15,11 @@ import sounddevice as sd
 import numpy as np
 from pathlib import Path
 from typing import Optional
+
+# Configure ONNX Runtime environment before importing modules
+# This prevents GPU device discovery warnings on CPU-only devices like Raspberry Pi
+os.environ.setdefault('ORT_DISABLE_GPU_DEVICE_CHECK', '1')
+os.environ.setdefault('ORT_LOGGING_LEVEL', '3')  # 3 = ERROR level
 
 from modules.wake_word import WakeWordDetector
 from modules.vad import VoiceActivityDetector
