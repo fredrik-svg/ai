@@ -203,14 +203,14 @@ MQTT Send (assistant/output)
 
 ```bash
 cd models/piper
-wget https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-sv-se-nst-medium.onnx
-wget https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-sv-se-nst-medium.onnx.json
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx.json
 cd ../..
 ```
 
 #### Alternativa språk
 
-För andra språk, besök: https://github.com/rhasspy/piper/releases
+För andra språk, besök: https://huggingface.co/rhasspy/piper-voices
 
 Uppdatera sedan `config.yaml`:
 ```yaml
@@ -337,7 +337,7 @@ pip install piper-tts
 ls -la models/piper/
 
 # Testa TTS direkt
-echo "test" | piper --model models/piper/voice-sv-se-nst-medium.onnx --output-file test.wav
+echo "test" | piper --model models/piper/sv_SE-lisa-medium.onnx --output-file test.wav
 ```
 
 ## 🔄 Kör vid uppstart (valfritt)
