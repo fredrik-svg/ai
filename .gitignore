@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Configuration
+config.yaml
+
+# Models
+models/
+*.onnx
+*.bin
+*.pt
+*.pth
+
+# Audio files
+*.wav
+*.mp3
+*.flac
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test files
+test_*.py
+tests/
+
+# Distribution
+dist/
+build/
+*.egg-info/
