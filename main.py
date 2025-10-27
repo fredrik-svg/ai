@@ -97,7 +97,8 @@ class VoiceAssistant:
             self.wake_word = WakeWordDetector(
                 access_key=wake_config['access_key'],
                 keyword=wake_config.get('keyword', 'hey-genio'),
-                sensitivity=wake_config.get('sensitivity', 0.5)
+                sensitivity=wake_config.get('sensitivity', 0.5),
+                keyword_path=wake_config.get('keyword_path')
             )
             self.wake_word.start()
 

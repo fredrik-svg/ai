@@ -22,6 +22,7 @@ config.yaml
 
 # Models
 models/
+!models/wake_words/README.md
 *.onnx
 *.bin
 *.pt

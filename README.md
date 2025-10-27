@@ -67,6 +67,12 @@ pip install -r requirements.txt
 #### Porcupine Wake Word (kräver Access Key)
 Registrera dig på [Picovoice Console](https://console.picovoice.ai/) för att få en gratis Access Key.
 
+**För anpassade wake words:**
+1. Gå till Picovoice Console och skapa ett anpassat wake word
+2. Ladda ner `.ppn`-filen
+3. Placera den i projektets katalog (t.ex. `models/wake_words/`)
+4. Uppdatera `keyword_path` i `config.yaml` med sökvägen till din `.ppn`-fil
+
 #### Faster-Whisper modell
 ```bash
 # Modellen laddas ner automatiskt vid första körningen
@@ -102,7 +108,8 @@ Redigera `config.yaml`:
 # Wake Word Detection
 wake_word:
   access_key: "DIN_PICOVOICE_ACCESS_KEY"
-  keyword: "hey-genio"  # eller annan tillgänglig keyword
+  keyword: "hey-genio"  # Built-in keyword (används bara om keyword_path inte är satt)
+  keyword_path: null  # Sökväg till anpassad .ppn-fil (t.ex., "models/wake_words/genio.ppn")
   sensitivity: 0.5
 
 # Voice Activity Detection
