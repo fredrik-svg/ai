@@ -14,51 +14,65 @@ class WakeWordDetector:
     Wake word detection using Picovoice Porcupine.
     """
 
-    def __init__(self, access_key: str, keyword: str = "hey-genio", sensitivity: float = 0.5):
+    def __init__(self, access_key: str, keyword: str = "hey-genio", sensitivity: float = 0.5, keyword_path: Optional[str] = None):
         """
         Initialize the wake word detector.
 
         Args:
             access_key: Picovoice access key
-            keyword: Wake word keyword to detect
+            keyword: Wake word keyword to detect (for built-in keywords)
             sensitivity: Detection sensitivity (0.0 to 1.0)
+            keyword_path: Path to custom .ppn wake word file (optional)
         """
         self.logger = logging.getLogger(__name__)
         self.access_key = access_key
         self.keyword = keyword
         self.sensitivity = sensitivity
+        self.keyword_path = keyword_path
         self.porcupine: Optional[pvporcupine.Porcupine] = None
 
-        self.logger.info(f"Initializing wake word detector with keyword: {keyword}")
+        if keyword_path:
+            self.logger.info(f"Initializing wake word detector with custom keyword file: {keyword_path}")
+        else:
+            self.logger.info(f"Initializing wake word detector with keyword: {keyword}")
 
     def start(self) -> None:
         """
         Start the wake word detector.
         """
         try:
-            # Get available keywords
-            keywords = pvporcupine.KEYWORDS
-            
-            # Use built-in keyword if available, otherwise use custom keyword path
-            if self.keyword in keywords:
+            # If custom keyword path is provided, use it
+            if self.keyword_path:
+                self.logger.info(f"Loading custom wake word from: {self.keyword_path}")
                 self.porcupine = pvporcupine.create(
                     access_key=self.access_key,
-                    keywords=[self.keyword],
+                    keyword_paths=[self.keyword_path],
                     sensitivities=[self.sensitivity]
                 )
             else:
-                # For custom keywords, you would need to train them via Picovoice Console
-                # and provide the .ppn file path
-                self.logger.warning(f"Keyword '{self.keyword}' not found in built-in keywords. "
-                                    f"Available keywords: {keywords}")
-                # Fallback to a common keyword
-                fallback_keyword = "jarvis" if "jarvis" in keywords else keywords[0]
-                self.logger.info(f"Using fallback keyword: {fallback_keyword}")
-                self.porcupine = pvporcupine.create(
-                    access_key=self.access_key,
-                    keywords=[fallback_keyword],
-                    sensitivities=[self.sensitivity]
-                )
+                # Get available keywords
+                keywords = pvporcupine.KEYWORDS
+                
+                # Use built-in keyword if available, otherwise use custom keyword path
+                if self.keyword in keywords:
+                    self.porcupine = pvporcupine.create(
+                        access_key=self.access_key,
+                        keywords=[self.keyword],
+                        sensitivities=[self.sensitivity]
+                    )
+                else:
+                    # For custom keywords, you would need to train them via Picovoice Console
+                    # and provide the .ppn file path
+                    self.logger.warning(f"Keyword '{self.keyword}' not found in built-in keywords. "
+                                        f"Available keywords: {keywords}")
+                    # Fallback to a common keyword
+                    fallback_keyword = "jarvis" if "jarvis" in keywords else keywords[0]
+                    self.logger.info(f"Using fallback keyword: {fallback_keyword}")
+                    self.porcupine = pvporcupine.create(
+                        access_key=self.access_key,
+                        keywords=[fallback_keyword],
+                        sensitivities=[self.sensitivity]
+                    )
 
             self.logger.info(f"Wake word detector started. Frame length: {self.porcupine.frame_length}")
             self.logger.info(f"Sample rate: {self.porcupine.sample_rate}")

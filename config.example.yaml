@@ -1,7 +1,8 @@
 # Wake Word Detection
 wake_word:
   access_key: "YOUR_PICOVOICE_ACCESS_KEY_HERE"
-  keyword: "hey-genio"
+  keyword: "hey-genio"  # Built-in keyword name (ignored if keyword_path is set)
+  keyword_path: null  # Path to custom .ppn file (e.g., "models/wake_words/my_custom_word.ppn")
   sensitivity: 0.5
 
 # Voice Activity Detection
