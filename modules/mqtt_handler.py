@@ -171,7 +171,7 @@ class MQTTHandler:
             payload = json.dumps({
                 "text": text,
                 "timestamp": time.time()
-            })
+            }, ensure_ascii=False)
 
             # Publish message
             result = self.client.publish(self.topic_send, payload, qos=self.qos)
