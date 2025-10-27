@@ -13,6 +13,9 @@ class VoiceActivityDetector:
     """
     Voice Activity Detection using WebRTC VAD.
     """
+    
+    # Maximum number of frames to buffer (prevents indefinite growth)
+    MAX_BUFFER_FRAMES = 10
 
     def __init__(self, sample_rate: int = 16000, frame_duration: int = 30, mode: int = 3):
         """
@@ -95,8 +98,8 @@ class VoiceActivityDetector:
         # Calculate required frame size in bytes
         required_bytes = self.frame_size * 2  # 2 bytes per sample for 16-bit PCM
         
-        # Prevent buffer from growing indefinitely (keep max 10 frames worth)
-        max_buffer_size = required_bytes * 10
+        # Prevent buffer from growing indefinitely
+        max_buffer_size = required_bytes * self.MAX_BUFFER_FRAMES
         if len(self.audio_buffer) > max_buffer_size:
             # Keep only the most recent data
             self.audio_buffer = self.audio_buffer[-max_buffer_size:]
@@ -114,7 +117,7 @@ class VoiceActivityDetector:
             is_speech = self.is_speech(frame)
             self.ring_buffer.append((frame, is_speech))
 
-            num_voiced = len([f for f, speech in self.ring_buffer if speech])
+            num_voiced = sum(1 for f, speech in self.ring_buffer if speech)
 
             # If we're not triggered and we have enough voiced frames, start recording
             if not self.triggered:
