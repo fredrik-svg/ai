@@ -52,6 +52,7 @@ class VoiceAssistant:
         self.running = False
         self.listening = False
         self.audio_buffer = []
+        self.wake_word_buffer = b''  # Buffer for accumulating audio for wake word detection
         
         self.logger.info("Voice Assistant initialized")
 
@@ -191,16 +192,38 @@ class VoiceAssistant:
 
         # If not listening, check for wake word
         if not self.listening:
-            # Process with wake word detector
-            if self.wake_word and len(audio_bytes) == self.wake_word.frame_length * 2:
-                if self.wake_word.process_audio(audio_bytes):
-                    self.logger.info("Wake word detected! Starting to listen...")
-                    self.listening = True
-                    self.audio_buffer = []
-                    self.vad.reset()
+            # Accumulate audio in buffer for wake word detection
+            # Note: Audio callback receives chunks of size 'chunk_size' (default 1024 samples),
+            # but Porcupine requires exact frames of 512 samples. We buffer and extract correctly sized frames.
+            self.wake_word_buffer += audio_bytes
+            
+            # Process with wake word detector when we have enough data
+            if self.wake_word:
+                required_bytes = self.wake_word.frame_length * 2  # 2 bytes per sample (16-bit)
+                
+                # Safeguard: prevent buffer from growing too large (keep max 4 frames worth)
+                max_buffer_size = required_bytes * 4
+                if len(self.wake_word_buffer) > max_buffer_size:
+                    # Keep only the most recent data
+                    self.wake_word_buffer = self.wake_word_buffer[-max_buffer_size:]
+                
+                # Process all complete frames in the buffer
+                while len(self.wake_word_buffer) >= required_bytes:
+                    # Extract one frame
+                    frame = self.wake_word_buffer[:required_bytes]
+                    self.wake_word_buffer = self.wake_word_buffer[required_bytes:]
                     
-                    # Play acknowledgment sound (optional)
-                    # You could play a beep here
+                    # Process the frame
+                    if self.wake_word.process_audio(frame):
+                        self.logger.info("Wake word detected! Starting to listen...")
+                        self.listening = True
+                        self.audio_buffer = []
+                        self.wake_word_buffer = b''  # Clear wake word buffer
+                        self.vad.reset()
+                        
+                        # Play acknowledgment sound (optional)
+                        # You could play a beep here
+                        break  # Stop processing more frames once detected
         else:
             # Listening mode - use VAD and record
             if self.vad:
