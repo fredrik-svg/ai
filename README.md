@@ -77,8 +77,8 @@ Registrera dig på [Picovoice Console](https://console.picovoice.ai/) för att f
 ```bash
 mkdir -p models/piper
 cd models/piper
-wget https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-sv-se-nst-medium.onnx
-wget https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-sv-se-nst-medium.onnx.json
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx
+wget https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx.json
 cd ../..
 ```
 
@@ -128,8 +128,8 @@ mqtt:
 
 # Text to Speech
 tts:
-  model_path: "models/piper/voice-sv-se-nst-medium.onnx"
-  config_path: "models/piper/voice-sv-se-nst-medium.onnx.json"
+  model_path: "models/piper/sv_SE-lisa-medium.onnx"
+  config_path: "models/piper/sv_SE-lisa-medium.onnx.json"
 
 # Audio Settings
 audio:

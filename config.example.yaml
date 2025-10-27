@@ -31,8 +31,8 @@ mqtt:
 
 # Text to Speech
 tts:
-  model_path: "models/piper/voice-sv-se-nst-medium.onnx"
-  config_path: "models/piper/voice-sv-se-nst-medium.onnx.json"
+  model_path: "models/piper/sv_SE-lisa-medium.onnx"
+  config_path: "models/piper/sv_SE-lisa-medium.onnx.json"
   speaker: 0
 
 # Audio Settings

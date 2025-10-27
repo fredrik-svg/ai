@@ -106,15 +106,15 @@ fi
 
 # Download Piper TTS model (Swedish)
 echo "Downloading Piper TTS model (Swedish)..."
-if [ ! -f "models/piper/voice-sv-se-nst-medium.onnx" ]; then
-    echo "Downloading Swedish voice model..."
+if [ ! -f "models/piper/sv_SE-lisa-medium.onnx" ]; then
+    echo "Downloading Swedish voice model from Hugging Face..."
     cd models/piper
     
-    # Download model and config
+    # Download model and config from Hugging Face
     wget -q --show-progress \
-        https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-sv-se-nst-medium.onnx \
-        https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-sv-se-nst-medium.onnx.json \
-        2>/dev/null || echo "Warning: Could not download Swedish voice model. Please download manually."
+        https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx \
+        https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx.json \
+        2>/dev/null || echo "Warning: Could not download Swedish voice model. Please download manually from Hugging Face."
     
     cd ../..
     echo "✓ TTS model downloaded"
