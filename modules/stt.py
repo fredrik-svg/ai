@@ -11,15 +11,6 @@ from typing import Optional, List
 import io
 import wave
 
-# Suppress ONNX Runtime GPU device discovery warnings
-# These warnings occur on devices without GPU (like Raspberry Pi) when ONNX Runtime
-# attempts to probe for GPU devices and fails to read device information files
-os.environ.setdefault('ORT_DISABLE_GPU_DEVICE_CHECK', '1')
-
-# Set ONNX Runtime log level to suppress unnecessary warnings
-# Level 3 = ERROR, which will hide the GPU device discovery warnings
-os.environ.setdefault('ORT_LOGGING_LEVEL', '3')
-
 
 class SpeechToText:
     """
@@ -68,7 +59,9 @@ class SpeechToText:
             
             # Optimize for CPU-only devices like Raspberry Pi
             if self.device == 'cpu':
-                model_kwargs['cpu_threads'] = os.cpu_count() or 4
+                # Use detected CPU count or conservative default of 2 for embedded devices
+                # On Raspberry Pi 5, os.cpu_count() typically returns 4 (quad-core)
+                model_kwargs['cpu_threads'] = os.cpu_count() or 2
                 model_kwargs['num_workers'] = 1
             
             self.model = WhisperModel(

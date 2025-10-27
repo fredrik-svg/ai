@@ -222,7 +222,7 @@ arecord -d 5 test.wav
 aplay test.wav
 ```
 
-### Wake Word detektering är långsam eller missar aktivering
+### Wake Word detektion är långsam eller missar aktivering
 Om du har svårt att få respons på wake word:
 
 1. **Justera känslighet**: Öka `sensitivity` värdet i `config.yaml` från 0.5 till 0.6-0.7
