@@ -59,8 +59,9 @@ class SpeechToText:
             
             # Optimize for CPU-only devices like Raspberry Pi
             if self.device == 'cpu':
-                # Use detected CPU count or conservative default of 2 for embedded devices
+                # Use detected CPU count if available, or conservative default of 2
                 # On Raspberry Pi 5, os.cpu_count() typically returns 4 (quad-core)
+                # The fallback of 2 is used only if os.cpu_count() returns None (rare cases)
                 model_kwargs['cpu_threads'] = os.cpu_count() or 2
                 model_kwargs['num_workers'] = 1
             
