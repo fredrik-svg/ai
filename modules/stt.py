@@ -22,7 +22,12 @@ class SpeechToText:
         model_size: str = "base",
         language: str = "sv",
         device: str = "cpu",
-        compute_type: str = "int8"
+        compute_type: str = "int8",
+        beam_size: int = 5,
+        temperature: float = 0.0,
+        initial_prompt: Optional[str] = None,
+        vad_filter: bool = True,
+        vad_min_silence_duration: int = 500
     ):
         """
         Initialize the STT engine.
@@ -32,16 +37,26 @@ class SpeechToText:
             language: Language code (e.g., 'sv' for Swedish, 'en' for English)
             device: Device to use ('cpu' or 'cuda')
             compute_type: Compute type (int8, int8_float16, float16, float32)
+            beam_size: Beam size for decoding (higher = better quality but slower)
+            temperature: Temperature for sampling (0.0 = deterministic)
+            initial_prompt: Optional prompt to guide transcription
+            vad_filter: Whether to use VAD filtering
+            vad_min_silence_duration: Minimum silence duration in ms for VAD
         """
         self.logger = logging.getLogger(__name__)
         self.model_size = model_size
         self.language = language
         self.device = device
         self.compute_type = compute_type
+        self.beam_size = beam_size
+        self.temperature = temperature
+        self.initial_prompt = initial_prompt
+        self.vad_filter = vad_filter
+        self.vad_min_silence_duration = vad_min_silence_duration
         self.model: Optional[WhisperModel] = None
 
         self.logger.info(f"Initializing Faster-Whisper with model: {model_size}, "
-                         f"language: {language}, device: {device}")
+                         f"language: {language}, device: {device}, beam_size: {beam_size}")
 
     def load_model(self) -> None:
         """
@@ -97,21 +112,34 @@ class SpeechToText:
             if audio_data.dtype != np.float32:
                 audio_data = audio_data.astype(np.float32)
             
-            # Normalize if needed
-            max_val = np.abs(audio_data).max()
-            if max_val > 1.0:
-                audio_data = audio_data / max_val
+            # Normalize to [-1, 1] range for optimal quality
+            # Use percentile-based normalization to handle outliers
+            max_val = np.percentile(np.abs(audio_data), 99)
+            if max_val > 0:
+                audio_data = np.clip(audio_data / max_val, -1.0, 1.0)
 
             self.logger.debug(f"Transcribing audio of length {len(audio_data)} samples")
 
+            # Build transcribe parameters
+            transcribe_params = {
+                'language': self.language,
+                'beam_size': self.beam_size,
+                'temperature': self.temperature,
+                'vad_filter': self.vad_filter
+            }
+            
+            # Add VAD parameters if VAD is enabled
+            if self.vad_filter:
+                transcribe_params['vad_parameters'] = dict(
+                    min_silence_duration_ms=self.vad_min_silence_duration
+                )
+            
+            # Add initial prompt if provided
+            if self.initial_prompt:
+                transcribe_params['initial_prompt'] = self.initial_prompt
+
             # Transcribe
-            segments, info = self.model.transcribe(
-                audio_data,
-                language=self.language,
-                beam_size=5,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=500)
-            )
+            segments, info = self.model.transcribe(audio_data, **transcribe_params)
 
             # Collect all segments
             transcription = " ".join([segment.text for segment in segments]).strip()
@@ -142,12 +170,25 @@ class SpeechToText:
         try:
             self.logger.info(f"Transcribing file: {audio_file_path}")
 
-            segments, info = self.model.transcribe(
-                audio_file_path,
-                language=self.language,
-                beam_size=5,
-                vad_filter=True
-            )
+            # Build transcribe parameters
+            transcribe_params = {
+                'language': self.language,
+                'beam_size': self.beam_size,
+                'temperature': self.temperature,
+                'vad_filter': self.vad_filter
+            }
+            
+            # Add VAD parameters if VAD is enabled
+            if self.vad_filter:
+                transcribe_params['vad_parameters'] = dict(
+                    min_silence_duration_ms=self.vad_min_silence_duration
+                )
+            
+            # Add initial prompt if provided
+            if self.initial_prompt:
+                transcribe_params['initial_prompt'] = self.initial_prompt
+
+            segments, info = self.model.transcribe(audio_file_path, **transcribe_params)
 
             transcription = " ".join([segment.text for segment in segments]).strip()
 
