@@ -155,6 +155,55 @@ class TextToSpeech:
             self.logger.error(f"Error in synthesize_and_play: {e}")
             return False
 
+    def _trim_silence(self, data: np.ndarray, threshold: float = 0.01) -> np.ndarray:
+        """
+        Trim silence from the beginning and end of audio data.
+
+        Args:
+            data: Audio data array
+            threshold: Amplitude threshold for silence detection
+
+        Returns:
+            Trimmed audio data
+        """
+        # Find first and last non-silent samples
+        non_silent = np.abs(data) > threshold
+        
+        if not non_silent.any():
+            # All silence, return original
+            return data
+        
+        # Find indices of first and last non-silent samples
+        first_idx = np.argmax(non_silent)
+        last_idx = len(non_silent) - np.argmax(non_silent[::-1]) - 1
+        
+        # Add small padding (50ms at 22050 Hz = ~1100 samples, scale to actual rate)
+        padding = int(0.05 * 22050)  # 50ms padding
+        first_idx = max(0, first_idx - padding)
+        last_idx = min(len(data) - 1, last_idx + padding)
+        
+        return data[first_idx:last_idx + 1]
+
+    def _normalize_audio(self, data: np.ndarray, target_level: float = 0.8) -> np.ndarray:
+        """
+        Normalize audio data to reduce volume variations.
+
+        Args:
+            data: Audio data array
+            target_level: Target peak level (0.0 to 1.0)
+
+        Returns:
+            Normalized audio data
+        """
+        # Find peak amplitude
+        peak = np.abs(data).max()
+        
+        if peak > 0:
+            # Normalize to target level
+            data = data * (target_level / peak)
+        
+        return data
+
     def play_audio_file(self, file_path: str) -> bool:
         """
         Play an audio file.
@@ -170,6 +219,12 @@ class TextToSpeech:
 
             # Read the audio file
             data, sample_rate = sf.read(file_path)
+
+            # Trim silence from beginning and end to reduce noise
+            data = self._trim_silence(data)
+            
+            # Normalize audio for consistent volume
+            data = self._normalize_audio(data)
 
             # Play the audio
             sd.play(data, sample_rate, device=self.output_device)
