@@ -44,7 +44,6 @@ temp/
 *.tmp
 
 # Test files
-test_*.py
 tests/
 
 # Distribution
