@@ -201,7 +201,7 @@ class VoiceAssistant:
             if self.wake_word:
                 required_bytes = self.wake_word.frame_length * 2  # 2 bytes per sample (16-bit)
                 
-                # Safeguard: prevent buffer from growing too large (keep max 2 chunks worth)
+                # Safeguard: prevent buffer from growing too large (keep max 4 frames worth)
                 max_buffer_size = required_bytes * 4
                 if len(self.wake_word_buffer) > max_buffer_size:
                     # Keep only the most recent data
