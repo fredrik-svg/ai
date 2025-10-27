@@ -3,7 +3,7 @@ wake_word:
   access_key: "YOUR_PICOVOICE_ACCESS_KEY_HERE"
   keyword: "hey-genio"  # Built-in keyword name (ignored if keyword_path is set)
   keyword_path: null  # Path to custom .ppn file (e.g., "models/wake_words/my_custom_word.ppn")
-  sensitivity: 0.5
+  sensitivity: 0.5  # Range: 0.0-1.0. Lower = fewer false positives but may miss wake word. Higher = more responsive but more false positives. Try 0.6-0.7 if experiencing responsiveness issues.
 
 # Voice Activity Detection
 vad:
