@@ -1,0 +1,49 @@
+# Wake Word Detection
+wake_word:
+  access_key: "YOUR_PICOVOICE_ACCESS_KEY_HERE"
+  keyword: "hey-genio"
+  sensitivity: 0.5
+
+# Voice Activity Detection
+vad:
+  sample_rate: 16000
+  frame_duration: 30  # milliseconds
+  mode: 3  # 0=Quality, 1=Low Bitrate, 2=Aggressive, 3=Very Aggressive
+  
+# Speech to Text
+stt:
+  model: "base"  # Options: tiny, base, small, medium, large-v2, large-v3
+  language: "sv"  # Swedish
+  device: "cpu"  # cpu or cuda
+  compute_type: "int8"  # int8, int8_float16, float16, float32
+
+# MQTT / n8n Integration
+mqtt:
+  broker: "your-cluster.hivemq.cloud"
+  port: 8883
+  username: "your_mqtt_username"
+  password: "your_mqtt_password"
+  topic_send: "assistant/input"
+  topic_receive: "assistant/output"
+  use_tls: true
+  keepalive: 60
+  qos: 1
+
+# Text to Speech
+tts:
+  model_path: "models/piper/voice-sv-se-nst-medium.onnx"
+  config_path: "models/piper/voice-sv-se-nst-medium.onnx.json"
+  speaker: 0
+
+# Audio Settings
+audio:
+  input_device: null  # null = default device, or device index number
+  output_device: null  # null = default device, or device index number
+  sample_rate: 16000
+  channels: 1
+  chunk_size: 1024
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
