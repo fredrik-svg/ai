@@ -5,8 +5,10 @@ Continuously listens for the wake word (e.g., "Hey Genio").
 
 import logging
 import struct
+import os
 import pvporcupine
 from typing import Optional, Callable
+from pathlib import Path
 
 
 class WakeWordDetector:
@@ -20,19 +22,36 @@ class WakeWordDetector:
 
         Args:
             access_key: Picovoice access key
-            keyword: Wake word keyword to detect (for built-in keywords)
+            keyword: Wake word keyword to detect (for built-in keywords, ignored if keyword_path is provided)
             sensitivity: Detection sensitivity (0.0 to 1.0)
-            keyword_path: Path to custom .ppn wake word file (optional)
+            keyword_path: Path to custom .ppn wake word file (optional, takes precedence over keyword)
         """
         self.logger = logging.getLogger(__name__)
         self.access_key = access_key
         self.keyword = keyword
         self.sensitivity = sensitivity
-        self.keyword_path = keyword_path
+        self.keyword_path = None
         self.porcupine: Optional[pvporcupine.Porcupine] = None
 
+        # Validate and set keyword_path if provided
         if keyword_path:
-            self.logger.info(f"Initializing wake word detector with custom keyword file: {keyword_path}")
+            keyword_path_obj = Path(keyword_path)
+            
+            # Validate the file exists
+            if not keyword_path_obj.exists():
+                raise FileNotFoundError(f"Custom wake word file not found: {keyword_path}")
+            
+            # Validate it's a file, not a directory
+            if not keyword_path_obj.is_file():
+                raise ValueError(f"Custom wake word path is not a file: {keyword_path}")
+            
+            # Validate the extension
+            if keyword_path_obj.suffix.lower() != '.ppn':
+                raise ValueError(f"Custom wake word file must have .ppn extension: {keyword_path}")
+            
+            # Store the absolute path for safety
+            self.keyword_path = str(keyword_path_obj.resolve())
+            self.logger.info(f"Initializing wake word detector with custom keyword file: {self.keyword_path}")
         else:
             self.logger.info(f"Initializing wake word detector with keyword: {keyword}")
 
