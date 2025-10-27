@@ -192,12 +192,20 @@ class VoiceAssistant:
 
         # If not listening, check for wake word
         if not self.listening:
-            # Accumulate audio in buffer
+            # Accumulate audio in buffer for wake word detection
+            # Note: Audio callback receives chunks of size 'chunk_size' (default 1024 samples),
+            # but Porcupine requires exact frames of 512 samples. We buffer and extract correctly sized frames.
             self.wake_word_buffer += audio_bytes
             
             # Process with wake word detector when we have enough data
             if self.wake_word:
                 required_bytes = self.wake_word.frame_length * 2  # 2 bytes per sample (16-bit)
+                
+                # Safeguard: prevent buffer from growing too large (keep max 2 chunks worth)
+                max_buffer_size = required_bytes * 4
+                if len(self.wake_word_buffer) > max_buffer_size:
+                    # Keep only the most recent data
+                    self.wake_word_buffer = self.wake_word_buffer[-max_buffer_size:]
                 
                 # Process all complete frames in the buffer
                 while len(self.wake_word_buffer) >= required_bytes:
