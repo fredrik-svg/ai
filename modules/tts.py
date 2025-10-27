@@ -219,6 +219,10 @@ class TextToSpeech:
 
             # Read the audio file
             data, sample_rate = sf.read(file_path)
+            
+            # Convert to mono if stereo
+            if data.ndim > 1:
+                data = data.mean(axis=1)
 
             # Trim silence from beginning and end to reduce noise
             data = self._trim_silence(data)
