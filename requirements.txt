@@ -12,6 +12,7 @@ webrtcvad>=2.0.10
 # Speech-to-Text
 faster-whisper>=0.10.0
 torch>=2.0.0
+requests>=2.31.0
 
 # MQTT Client
 paho-mqtt>=1.6.1
