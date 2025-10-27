@@ -17,6 +17,18 @@ stt:
   language: "sv"  # Swedish
   device: "cpu"  # cpu or cuda
   compute_type: "int8"  # int8, int8_float16, float16, float32
+  
+  # Transcription quality parameters
+  beam_size: 8  # Beam size for decoding (5-10 recommended, higher = better quality but slower)
+  temperature: 0.0  # Temperature for sampling (0.0 = deterministic, more consistent results)
+  
+  # Initial prompt to guide the model for better Swedish recognition
+  # This helps the model understand context and improves accuracy for Swedish
+  initial_prompt: "Detta är en konversation på svenska."  # "This is a conversation in Swedish."
+  
+  # Voice Activity Detection (VAD) filtering
+  vad_filter: true  # Enable VAD to filter out silence
+  vad_min_silence_duration: 700  # Minimum silence duration in ms (increased from 500ms to avoid cutting off speech)
 
 # MQTT / n8n Integration
 mqtt:

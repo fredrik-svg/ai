@@ -122,6 +122,11 @@ stt:
   model: "base"  # tiny, base, small, medium, large
   language: "sv"  # svenska
   device: "cpu"
+  beam_size: 8  # Strålstorlek för avkodning (högre = bättre kvalitet men långsammare)
+  temperature: 0.0  # Temperatur för sampling (0.0 = deterministisk)
+  initial_prompt: "Detta är en konversation på svenska."  # Ledtråd för bättre svensk igenkänning
+  vad_filter: true  # Använd VAD för att filtrera bort tystnad
+  vad_min_silence_duration: 700  # Minsta tystnadsvaraktighet i ms
 
 # MQTT / n8n Integration
 mqtt:
@@ -236,6 +241,38 @@ Om du har svårt att få respons på wake word:
 3. **Testa olika wake words**: Prova olika inbyggda wake words eller skapa ett anpassat
 
 4. **Kontrollera systembelastning**: Kör `top` för att se om CPU är överbelastad
+
+### STT (Speech-to-Text) kvalitetsproblem
+Om rösttranskriptionen är dålig eller missar ord:
+
+1. **Öka beam_size**: Högre värde ger bättre kvalitet men långsammare transkribering
+   ```yaml
+   stt:
+     beam_size: 10  # Standard: 8, prova 10-12 för ännu bättre kvalitet
+   ```
+
+2. **Justera VAD-parametrar**: Om tal klipps av för tidigt
+   ```yaml
+   stt:
+     vad_min_silence_duration: 1000  # Öka från 700ms till 1000ms
+   ```
+
+3. **Använd större modell**: Byt från "base" till "small" eller "medium"
+   ```yaml
+   stt:
+     model: "small"  # Bättre noggrannhet men kräver mer minne och CPU
+   ```
+
+4. **Anpassa initial_prompt**: Ändra kontexten för att passa din användning
+   ```yaml
+   stt:
+     initial_prompt: "Detta är hemautomation kommando på svenska."
+   ```
+
+5. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
+   ```bash
+   arecord -d 5 -f cd test.wav && aplay test.wav
+   ```
 
 ### ONNX Runtime GPU-varningar
 Om du ser varningar om GPU-enheter som inte hittas (t.ex. "GPU device discovery failed"):

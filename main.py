@@ -125,7 +125,12 @@ class VoiceAssistant:
                 model_size=stt_config.get('model', 'base'),
                 language=stt_config.get('language', 'sv'),
                 device=stt_config.get('device', 'cpu'),
-                compute_type=stt_config.get('compute_type', 'int8')
+                compute_type=stt_config.get('compute_type', 'int8'),
+                beam_size=stt_config.get('beam_size', 5),
+                temperature=stt_config.get('temperature', 0.0),
+                initial_prompt=stt_config.get('initial_prompt'),
+                vad_filter=stt_config.get('vad_filter', True),
+                vad_min_silence_duration=stt_config.get('vad_min_silence_duration', 500)
             )
             self.stt.load_model()
 
