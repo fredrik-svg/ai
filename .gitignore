@@ -48,6 +48,7 @@ temp/
 # Test files
 test_*.py
 !test_stt_microphone.py
+!test_stt_dtype_conversion.py
 tests/
 
 # Distribution
