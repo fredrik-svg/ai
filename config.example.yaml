@@ -21,6 +21,10 @@ stt:
   language: "sv"  # Swedish
   sample_rate: 16000  # Audio sample rate in Hz
   
+  # Audio recording options for debugging
+  save_recordings: false  # Set to true to save all audio recordings for debugging
+  recordings_dir: "recordings"  # Directory where recordings will be saved
+  
   # Legacy Faster-Whisper parameters below are kept for backward compatibility
   # but are not used by Vosk. You can safely ignore them.
   model: "base"  # Not used with Vosk

@@ -33,6 +33,10 @@ models/
 *.mp3
 *.flac
 
+# Recordings directories
+recordings/
+test_recordings/
+
 # Logs
 *.log
 

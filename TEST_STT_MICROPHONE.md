@@ -46,6 +46,29 @@ Kör testet med standardinställningar (5 sekunders inspelning):
 python test_stt_microphone.py
 ```
 
+### Spara och spela upp inspelat ljud
+
+För att felsöka problem med STT kan du spara inspelningen och spela upp den:
+
+```bash
+# Spara inspelningen till en WAV-fil
+python test_stt_microphone.py --save-audio
+
+# Spara och spela upp inspelningen direkt
+python test_stt_microphone.py --play-audio
+```
+
+När du använder `--save-audio` eller `--play-audio` sparas ljudfilen i `test_recordings/`-katalogen med ett tidsstämpel-baserat filnamn. Du kan sedan lyssna på filen för att avgöra om problemet ligger i:
+- Mikrofonkvalitet eller volym
+- Bakgrundsljud
+- Talartydlighet
+- Modellens förmåga att känna igen det talade språket
+
+Du kan också spela upp den sparade filen manuellt med:
+```bash
+aplay test_recordings/test_YYYYMMDD_HHMMSS.wav
+```
+
 ### Lista tillgängliga ljudenheter
 
 För att se vilka mikrofoner som är tillgängliga:

@@ -13,6 +13,8 @@ Options:
     --device INDEX       Audio input device index (default: system default)
     --language LANG      Language code (default: sv)
     --list-devices       List available audio devices and exit
+    --save-audio         Save the recorded audio to a WAV file for debugging
+    --play-audio         Play back the recorded audio after transcription
 
 Example:
     # Test with default settings
@@ -26,6 +28,9 @@ Example:
 
     # Use specific device
     python test_stt_microphone.py --device 2
+    
+    # Save and play back audio for debugging
+    python test_stt_microphone.py --save-audio --play-audio
 """
 
 import argparse
@@ -125,7 +130,9 @@ def test_stt_microphone(
     sample_rate: int = 16000,
     duration: int = 5,
     device: int = None,
-    language: str = "sv"
+    language: str = "sv",
+    save_audio: bool = False,
+    play_audio: bool = False
 ):
     """
     Test STT with microphone input.
@@ -136,6 +143,8 @@ def test_stt_microphone(
         duration: Recording duration in seconds
         device: Audio input device index
         language: Language code
+        save_audio: If True, save the recorded audio to a WAV file
+        play_audio: If True, play back the recorded audio after transcription
     """
     logger = logging.getLogger(__name__)
     
@@ -153,6 +162,10 @@ def test_stt_microphone(
         default_device = sd.default.device[0]
         device_info = sd.query_devices(default_device)
         print(f"  Input Device: [default] {device_info['name']}")
+    if save_audio:
+        print(f"  Save Audio: Yes")
+    if play_audio:
+        print(f"  Play Audio: Yes")
     print("=" * 70 + "\n")
     
     # Initialize STT
@@ -161,7 +174,9 @@ def test_stt_microphone(
         stt = SpeechToText(
             model_path=model_path,
             language=language,
-            sample_rate=sample_rate
+            sample_rate=sample_rate,
+            save_recordings=save_audio,
+            recordings_dir="test_recordings"
         )
         stt.load_model()
         print("✓ STT module initialized successfully\n")
@@ -182,10 +197,20 @@ def test_stt_microphone(
         print(f"  {e}")
         return False
     
+    # Save audio file path for playback
+    saved_audio_path = None
+    
     # Transcribe audio
     print("Transcribing audio...")
     try:
         transcription = stt.transcribe_audio(audio_data, sample_rate)
+        
+        # If save_audio is enabled but we want the path for playback
+        if save_audio or play_audio:
+            # Save audio manually to get the path
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            saved_audio_path = stt.save_audio_to_wav(audio_data, sample_rate, f"test_{timestamp}.wav")
         
         print("\n" + "=" * 70)
         print("TRANSCRIPTION RESULT:")
@@ -193,7 +218,30 @@ def test_stt_microphone(
         if transcription:
             print(f"  \"{transcription}\"")
             print("=" * 70)
+            
+            # Play back audio if requested
+            if play_audio and saved_audio_path and os.path.exists(saved_audio_path):
+                print("\nPlaying back recorded audio...")
+                try:
+                    # Read and play the WAV file
+                    import wave
+                    with wave.open(saved_audio_path, 'rb') as wf:
+                        audio_data_playback = np.frombuffer(
+                            wf.readframes(wf.getnframes()), 
+                            dtype=np.int16
+                        ).astype(np.float32) / 32767.0
+                        
+                        sd.play(audio_data_playback, sample_rate)
+                        sd.wait()
+                        print("✓ Playback complete")
+                except Exception as e:
+                    logger.error(f"Failed to play back audio: {e}")
+                    print(f"⚠ WARNING: Could not play back audio: {e}")
+            
             print("\n✓ STT test completed successfully!")
+            if saved_audio_path:
+                print(f"\n📁 Audio saved to: {saved_audio_path}")
+                print(f"   You can play it back with: aplay {saved_audio_path}")
             return True
         else:
             print("  (no text detected)")
@@ -204,6 +252,11 @@ def test_stt_microphone(
             print("  - The microphone volume is too low")
             print("  - Background noise is too high")
             print("  - The language model doesn't match the spoken language")
+            
+            if saved_audio_path:
+                print(f"\n📁 Audio saved to: {saved_audio_path}")
+                print(f"   You can play it back to debug: aplay {saved_audio_path}")
+            
             return False
     
     except Exception as e:
@@ -238,6 +291,12 @@ Examples:
 
   # Use custom model path
   %(prog)s --model-path models/vosk/vosk-model-sv-se-0.22
+  
+  # Save audio to file for debugging
+  %(prog)s --save-audio
+  
+  # Play back audio after recording
+  %(prog)s --play-audio
         """
     )
     
@@ -281,6 +340,16 @@ Examples:
         action='store_true',
         help='Enable verbose debug logging'
     )
+    parser.add_argument(
+        '--save-audio',
+        action='store_true',
+        help='Save the recorded audio to a WAV file for debugging'
+    )
+    parser.add_argument(
+        '--play-audio',
+        action='store_true',
+        help='Play back the recorded audio after transcription (implies --save-audio)'
+    )
     
     args = parser.parse_args()
     
@@ -310,7 +379,9 @@ Examples:
         sample_rate=args.sample_rate,
         duration=args.duration,
         device=args.device,
-        language=args.language
+        language=args.language,
+        save_audio=args.save_audio or args.play_audio,
+        play_audio=args.play_audio
     )
     
     return 0 if success else 1

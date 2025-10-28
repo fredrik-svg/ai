@@ -134,6 +134,8 @@ class VoiceAssistant:
                 model_path=stt_config.get('model_path', 'models/vosk/vosk-model-small-sv-rhasspy-0.15'),
                 language=stt_config.get('language', 'sv'),
                 sample_rate=stt_config.get('sample_rate', 16000),
+                save_recordings=stt_config.get('save_recordings', False),
+                recordings_dir=stt_config.get('recordings_dir', 'recordings'),
                 # Legacy Faster-Whisper parameters for backward compatibility
                 model_size=stt_config.get('model', 'base'),
                 device=stt_config.get('device', 'cpu'),
