@@ -241,7 +241,7 @@ usage: test_stt_microphone.py [-h] [--model-path MODEL_PATH]
                                [--sample-rate SAMPLE_RATE]
                                [--duration DURATION] [--device DEVICE]
                                [--language LANGUAGE] [--list-devices]
-                               [--verbose]
+                               [--verbose] [--save-audio] [--play-audio]
 
 Test STT (Speech-To-Text) functionality with microphone
 
@@ -258,6 +258,8 @@ options:
   --language LANGUAGE   Language code (default: sv for Swedish)
   --list-devices        List available audio devices and exit
   --verbose             Enable verbose debug logging
+  --save-audio          Save the recorded audio to a WAV file for debugging
+  --play-audio          Play back the recorded audio after transcription
 ```
 
 ## Integrering med huvudapplikationen
