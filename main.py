@@ -216,7 +216,7 @@ class VoiceAssistant:
         Callback for audio input stream.
 
         Args:
-            indata: Input audio data
+            indata: Input audio data (float32, normalized to [-1, 1])
             frames: Number of frames
             time_info: Time information
             status: Status flags
@@ -224,8 +224,10 @@ class VoiceAssistant:
         if status:
             self.logger.warning(f"Audio callback status: {status}")
 
-        # Convert to bytes for wake word detection
-        audio_bytes = indata.tobytes()
+        # Convert float32 audio to int16 bytes for wake word detection and VAD
+        # Vosk/STT works better with float32, but wake word and VAD need int16 bytes
+        audio_int16 = (indata * 32767).astype(np.int16)
+        audio_bytes = audio_int16.tobytes()
         
         # Log audio callback activity periodically (every 100 callbacks ~= every 6.4 seconds at 1024 samples/16kHz)
         if not hasattr(self, '_callback_count'):
@@ -385,10 +387,11 @@ class VoiceAssistant:
             input_device = audio_config.get('input_device')
 
             # Start audio stream
+            # Use float32 dtype for better STT accuracy (consistent with test_stt_microphone.py)
             with sd.InputStream(
                 samplerate=sample_rate,
                 channels=channels,
-                dtype='int16',
+                dtype='float32',
                 blocksize=chunk_size,
                 device=input_device,
                 callback=self._audio_callback
