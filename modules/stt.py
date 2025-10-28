@@ -11,6 +11,8 @@ from vosk import Model, KaldiRecognizer
 from typing import Optional
 import wave
 import io
+from datetime import datetime
+from pathlib import Path
 
 
 class SpeechToText:
@@ -24,6 +26,9 @@ class SpeechToText:
         model_path: str = "models/vosk/vosk-model-small-sv-rhasspy-0.15",
         language: str = "sv",
         sample_rate: int = 16000,
+        # Audio recording options
+        save_recordings: bool = False,
+        recordings_dir: str = "recordings",
         # Legacy parameters kept for backward compatibility but not used with Vosk
         model_size: Optional[str] = None,
         device: Optional[str] = None,
@@ -42,6 +47,8 @@ class SpeechToText:
             model_path: Path to Vosk model directory
             language: Language code (e.g., 'sv' for Swedish, 'en' for English)
             sample_rate: Audio sample rate (default: 16000 Hz)
+            save_recordings: If True, save audio recordings to disk for debugging
+            recordings_dir: Directory to save recordings in
             
         Note: Other parameters are kept for backward compatibility with Faster-Whisper
               but are not used by Vosk.
@@ -50,8 +57,15 @@ class SpeechToText:
         self.model_path = model_path
         self.language = language
         self.sample_rate = sample_rate
+        self.save_recordings = save_recordings
+        self.recordings_dir = recordings_dir
         self.model: Optional[Model] = None
         self.recognizer: Optional[KaldiRecognizer] = None
+
+        # Create recordings directory if needed
+        if self.save_recordings:
+            Path(self.recordings_dir).mkdir(parents=True, exist_ok=True)
+            self.logger.info(f"Audio recordings will be saved to: {self.recordings_dir}")
 
         self.logger.info(f"Initializing Vosk STT with model: {model_path}, "
                          f"language: {language}, sample_rate: {sample_rate}")
@@ -78,6 +92,59 @@ class SpeechToText:
             self.logger.error(f"Failed to load Vosk model: {e}")
             raise
 
+    def save_audio_to_wav(
+        self,
+        audio_data: np.ndarray,
+        sample_rate: int = 16000,
+        filename: Optional[str] = None
+    ) -> str:
+        """
+        Save audio data to a WAV file for debugging.
+
+        Args:
+            audio_data: Audio data as numpy array (float32, normalized to [-1, 1])
+            sample_rate: Sample rate of the audio
+            filename: Optional filename (without path). If None, generates timestamp-based name.
+
+        Returns:
+            Path to the saved WAV file
+        """
+        try:
+            # Generate filename if not provided
+            if filename is None:
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"recording_{timestamp}.wav"
+            
+            # Ensure recordings directory exists
+            Path(self.recordings_dir).mkdir(parents=True, exist_ok=True)
+            
+            # Full path to the file
+            filepath = os.path.join(self.recordings_dir, filename)
+            
+            # Ensure audio is float32 normalized to [-1, 1]
+            if audio_data.dtype != np.float32:
+                if audio_data.dtype == np.int16:
+                    audio_data = audio_data.astype(np.float32) / 32767.0
+                else:
+                    audio_data = audio_data.astype(np.float32)
+            
+            # Convert to int16 for WAV file
+            audio_int16 = (audio_data * 32767).astype(np.int16)
+            
+            # Write WAV file
+            with wave.open(filepath, 'wb') as wf:
+                wf.setnchannels(1)  # Mono
+                wf.setsampwidth(2)  # 16-bit
+                wf.setframerate(sample_rate)
+                wf.writeframes(audio_int16.tobytes())
+            
+            self.logger.info(f"Audio saved to: {filepath}")
+            return filepath
+            
+        except Exception as e:
+            self.logger.error(f"Error saving audio to WAV: {e}")
+            return ""
+
     def transcribe_audio(
         self,
         audio_data: np.ndarray,
@@ -98,6 +165,10 @@ class SpeechToText:
             return ""
 
         try:
+            # Save audio recording if enabled
+            if self.save_recordings:
+                self.save_audio_to_wav(audio_data, sample_rate)
+            
             # Ensure audio is float32 normalized to [-1, 1]
             if audio_data.dtype != np.float32:
                 if audio_data.dtype == np.int16:
