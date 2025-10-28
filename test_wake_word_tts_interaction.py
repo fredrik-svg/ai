@@ -29,7 +29,14 @@ class MockArray:
     def __init__(self, data, dtype=None, shape=None):
         self.data = data
         self.dtype = dtype
-        self.shape = shape if shape else (len(data) if isinstance(data, list) else 1, 1)
+        # If shape not provided, determine from data
+        if shape is None:
+            if isinstance(data, list):
+                self.shape = (len(data),)
+            else:
+                self.shape = (1,)
+        else:
+            self.shape = shape
     
     def tobytes(self):
         return b'\x00' * 1024
@@ -38,7 +45,19 @@ class MockArray:
         return MockArray(self.data, self.dtype, self.shape)
 
 mock_np = sys.modules['numpy']
-mock_np.zeros = lambda shape, dtype=None: MockArray([0] * (shape[0] if isinstance(shape, tuple) else shape), dtype, shape)
+
+def mock_zeros(shape, dtype=None):
+    # Handle both tuple and int shapes
+    if isinstance(shape, tuple):
+        # Calculate total size for multi-dimensional arrays
+        size = 1
+        for dim in shape:
+            size *= dim
+        return MockArray([0] * size, dtype, shape)
+    else:
+        return MockArray([0] * shape, dtype, (shape,))
+
+mock_np.zeros = mock_zeros
 mock_np.int16 = 'int16'
 
 from main import VoiceAssistant
