@@ -42,6 +42,18 @@ class MockArray:
     
     def copy(self):
         return MockArray(self.data, self.dtype, self.shape)
+    
+    def __mul__(self, scalar):
+        """Support multiplication with scalars (e.g., array * 32767)"""
+        if isinstance(self.data, list):
+            multiplied_data = [x * scalar for x in self.data]
+        else:
+            multiplied_data = self.data * scalar
+        return MockArray(multiplied_data, self.dtype, self.shape)
+    
+    def __rmul__(self, scalar):
+        """Support reverse multiplication with scalars (e.g., 32767 * array)"""
+        return self.__mul__(scalar)
 
 mock_np = sys.modules['numpy']
 
