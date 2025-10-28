@@ -155,13 +155,14 @@ class TextToSpeech:
             self.logger.error(f"Error in synthesize_and_play: {e}")
             return False
 
-    def _trim_silence(self, data: np.ndarray, threshold: float = 0.01) -> np.ndarray:
+    def _trim_silence(self, data: np.ndarray, threshold: float = 0.01, sample_rate: int = 22050) -> np.ndarray:
         """
         Trim silence from the beginning and end of audio data.
 
         Args:
             data: Audio data array
             threshold: Amplitude threshold for silence detection
+            sample_rate: Sample rate of the audio
 
         Returns:
             Trimmed audio data
@@ -177,12 +178,38 @@ class TextToSpeech:
         first_idx = np.argmax(non_silent)
         last_idx = len(non_silent) - np.argmax(non_silent[::-1]) - 1
         
-        # Add small padding (50ms at 22050 Hz = ~1100 samples, scale to actual rate)
-        padding = int(0.05 * 22050)  # 50ms padding
-        first_idx = max(0, first_idx - padding)
-        last_idx = min(len(data) - 1, last_idx + padding)
+        # Add small padding at start (50ms)
+        start_padding = int(0.05 * sample_rate)
+        first_idx = max(0, first_idx - start_padding)
+        
+        # Minimal padding at end (10ms) to reduce trailing noise
+        end_padding = int(0.01 * sample_rate)
+        last_idx = min(len(data) - 1, last_idx + end_padding)
         
         return data[first_idx:last_idx + 1]
+
+    def _apply_fade_out(self, data: np.ndarray, fade_duration: float = 0.05, sample_rate: int = 22050) -> np.ndarray:
+        """
+        Apply a fade-out to the end of audio data to prevent clicks/pops.
+
+        Args:
+            data: Audio data array
+            fade_duration: Duration of fade in seconds (default 50ms)
+            sample_rate: Sample rate of the audio
+
+        Returns:
+            Audio data with fade-out applied
+        """
+        fade_samples = int(fade_duration * sample_rate)
+        fade_samples = min(fade_samples, len(data))
+        
+        if fade_samples > 0:
+            # Create fade curve (linear fade)
+            fade_curve = np.linspace(1.0, 0.0, fade_samples)
+            # Apply fade to the end of the audio
+            data[-fade_samples:] *= fade_curve
+        
+        return data
 
     def _normalize_audio(self, data: np.ndarray, target_level: float = 0.8) -> np.ndarray:
         """
@@ -225,7 +252,10 @@ class TextToSpeech:
                 data = data.mean(axis=1)
 
             # Trim silence from beginning and end to reduce noise
-            data = self._trim_silence(data)
+            data = self._trim_silence(data, sample_rate=sample_rate)
+            
+            # Apply fade-out to prevent clicks/pops at the end
+            data = self._apply_fade_out(data, fade_duration=0.05, sample_rate=sample_rate)
             
             # Normalize audio for consistent volume
             data = self._normalize_audio(data)

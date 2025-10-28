@@ -11,6 +11,7 @@ import yaml
 import signal
 import time
 import struct
+import collections
 import sounddevice as sd
 import numpy as np
 from pathlib import Path
@@ -59,6 +60,8 @@ class VoiceAssistant:
         self.listening = False
         self.speaking = False  # Flag to indicate TTS is speaking
         self.audio_buffer = []
+        self.pre_buffer = collections.deque(maxlen=10)  # Pre-buffer to capture start of speech
+        self.vad_triggered = False  # Track if VAD has confirmed speech
         self.wake_word_buffer = b''  # Buffer for accumulating audio for wake word detection
         self.listening_start_time = None  # Track when listening started for timeout
         self.listening_timeout = 10.0  # Maximum time in listening mode (seconds)
@@ -276,8 +279,10 @@ class VoiceAssistant:
                     if self.wake_word.process_audio(frame):
                         self.logger.info("Wake word detected! Starting to listen...")
                         self.listening = True
+                        self.vad_triggered = False  # Reset VAD trigger state
                         self.listening_start_time = time.time()  # Record start time
                         self.audio_buffer = []
+                        self.pre_buffer.clear()  # Clear pre-buffer for new listening session
                         self.wake_word_buffer = b''  # Clear wake word buffer
                         self.vad.reset()
                         
@@ -301,8 +306,10 @@ class VoiceAssistant:
                         self._process_recorded_audio()
                     # Reset to wake word detection mode
                     self.listening = False
+                    self.vad_triggered = False
                     self.listening_start_time = None
                     self.audio_buffer = []
+                    self.pre_buffer.clear()
                     self.vad.reset()
                     return
             
@@ -310,22 +317,37 @@ class VoiceAssistant:
                 try:
                     is_speaking, voice_changed = self.vad.process_frame(audio_bytes)
                     
+                    # Always add to pre-buffer when in listening mode (before VAD confirms)
+                    if not self.vad_triggered:
+                        self.pre_buffer.append(indata.copy())
+                    
                     if is_speaking:
-                        # Add to buffer
+                        # If VAD just triggered, add pre-buffered frames to capture the start
+                        if not self.vad_triggered:
+                            self.logger.debug("VAD triggered - adding pre-buffered frames")
+                            self.audio_buffer.extend(list(self.pre_buffer))
+                            self.pre_buffer.clear()
+                            self.vad_triggered = True
+                        
+                        # Add current frame to buffer
                         self.audio_buffer.append(indata.copy())
                     elif voice_changed and not is_speaking:
                         # Voice stopped - process the recorded audio
                         self.logger.info("Voice activity stopped. Processing...")
                         self._process_recorded_audio()
                         self.listening = False
+                        self.vad_triggered = False
                         self.listening_start_time = None
                         self.audio_buffer = []
+                        self.pre_buffer.clear()
                 except Exception as e:
                     self.logger.error(f"Error in VAD processing: {e}")
                     # Reset to safe state on error
                     self.listening = False
+                    self.vad_triggered = False
                     self.listening_start_time = None
                     self.audio_buffer = []
+                    self.pre_buffer.clear()
                     self.vad.reset()
 
     def _process_recorded_audio(self) -> None:
