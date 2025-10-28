@@ -9,7 +9,6 @@ import os
 import time
 import logging
 from unittest.mock import Mock, MagicMock, patch
-import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +22,24 @@ sys.modules['paho'] = Mock()
 sys.modules['paho.mqtt'] = Mock()
 sys.modules['paho.mqtt.client'] = Mock()
 sys.modules['soundfile'] = Mock()
+sys.modules['numpy'] = Mock()
+
+# Mock numpy array
+class MockArray:
+    def __init__(self, data, dtype=None, shape=None):
+        self.data = data
+        self.dtype = dtype
+        self.shape = shape if shape else (len(data) if isinstance(data, list) else 1, 1)
+    
+    def tobytes(self):
+        return b'\x00' * 1024
+    
+    def copy(self):
+        return MockArray(self.data, self.dtype, self.shape)
+
+mock_np = sys.modules['numpy']
+mock_np.zeros = lambda shape, dtype=None: MockArray([0] * (shape[0] if isinstance(shape, tuple) else shape), dtype, shape)
+mock_np.int16 = 'int16'
 
 from main import VoiceAssistant
 
@@ -101,28 +118,41 @@ def test_speaking_flag_prevents_wake_word_detection():
     assistant.tts = Mock()
     assistant.tts.speak = Mock(return_value=True)
     
+    # Mock the wake word detector
+    mock_wake_word = Mock()
+    mock_wake_word.porcupine = Mock()  # Non-None to pass initialization check
+    mock_wake_word.frame_length = 512
+    mock_wake_word.sample_rate = 16000
+    mock_wake_word.process_audio = Mock(return_value=False)  # Don't actually detect wake word
+    assistant.wake_word = mock_wake_word
+    
+    # Mock VAD
+    mock_vad = Mock()
+    mock_vad.reset = Mock()
+    assistant.vad = mock_vad
+    
     # Initialize state
     assistant.speaking = False
     assistant.listening = False
     assistant.wake_word_buffer = b''
     
     # Create mock audio data
-    mock_audio = np.zeros((512, 1), dtype=np.int16)
+    mock_audio = MockArray([0] * 512, dtype='int16', shape=(512, 1))
     
     print("\n1. Testing normal wake word detection (not speaking)")
     print("-" * 70)
     
     # Test 1: Audio callback should process wake word when not speaking
     assistant.speaking = False
-    initial_buffer_len = len(assistant.wake_word_buffer)
+    mock_wake_word.process_audio.reset_mock()  # Clear any previous calls
     assistant._audio_callback(mock_audio, 512, None, None)
     
-    # Buffer should have received audio data
-    if len(assistant.wake_word_buffer) > initial_buffer_len:
+    # Wake word processing should have been called
+    if mock_wake_word.process_audio.called:
         print("✓ Audio callback processes wake word detection when not speaking")
         test1_pass = True
     else:
-        print("✗ FAIL: Audio callback did not process audio when not speaking")
+        print("✗ FAIL: Audio callback did not process wake word when not speaking")
         test1_pass = False
     
     print("\n2. Testing wake word detection blocked during TTS")
@@ -130,16 +160,15 @@ def test_speaking_flag_prevents_wake_word_detection():
     
     # Test 2: Audio callback should skip wake word detection when speaking
     assistant.speaking = True
-    buffer_before_speaking = len(assistant.wake_word_buffer)
+    mock_wake_word.process_audio.reset_mock()  # Clear any previous calls
     assistant._audio_callback(mock_audio, 512, None, None)
-    buffer_after_speaking = len(assistant.wake_word_buffer)
     
-    # Buffer should NOT have grown
-    if buffer_before_speaking == buffer_after_speaking:
+    # Wake word processing should NOT have been called
+    if not mock_wake_word.process_audio.called:
         print("✓ Audio callback skips wake word detection when speaking")
         test2_pass = True
     else:
-        print("✗ FAIL: Audio callback processed audio during TTS playback")
+        print("✗ FAIL: Audio callback processed wake word during TTS playback")
         test2_pass = False
     
     print("\n3. Testing MQTT response handler sets speaking flag")
