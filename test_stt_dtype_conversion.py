@@ -11,6 +11,9 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Constant for acceptable rounding error in audio conversion
+ACCEPTABLE_ROUNDING_ERROR = 1  # bits of difference allowed due to float32 rounding
+
 def test_int16_to_float32_conversion():
     """Test that int16 audio is properly normalized to float32 range [-1, 1]"""
     
@@ -43,7 +46,7 @@ def test_int16_to_float32_conversion():
     print(f"\nMaximum difference: {max_diff}")
     print(f"Expected values: {expected}")
     
-    if max_diff <= 1:  # Allow 1 bit of difference due to rounding
+    if max_diff <= ACCEPTABLE_ROUNDING_ERROR:
         print("\n✓ TEST PASSED: int16 to float32 conversion is correct!")
         return True
     else:
@@ -78,7 +81,7 @@ def test_float32_unchanged():
     print(f"Maximum difference: {max_diff}")
     print(f"Expected values: {expected}")
     
-    if max_diff <= 1:
+    if max_diff <= ACCEPTABLE_ROUNDING_ERROR:
         print("\n✓ TEST PASSED: float32 data remains properly normalized!")
         return True
     else:

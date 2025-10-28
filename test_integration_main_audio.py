@@ -11,6 +11,9 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Constant for acceptable rounding error in audio conversion
+ACCEPTABLE_ROUNDING_ERROR = 1  # bits of difference allowed due to float32 rounding
+
 def simulate_main_py_audio_flow():
     """
     Simulate the exact audio flow from main.py:
@@ -84,7 +87,7 @@ def simulate_main_py_audio_flow():
     max_diff = np.max(np.abs(audio_data - audio_int16))
     print(f"  Max difference from original: {max_diff}")
     
-    if max_diff <= 1:  # Allow 1 bit of difference due to rounding
+    if max_diff <= ACCEPTABLE_ROUNDING_ERROR:
         print("✓ Round-trip conversion successful (within rounding error)")
         return True
     else:
