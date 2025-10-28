@@ -25,6 +25,10 @@ stt:
   save_recordings: false  # Set to true to save all audio recordings for debugging
   recordings_dir: "recordings"  # Directory where recordings will be saved
   
+  # Post-processing corrections for common misrecognitions
+  enable_corrections: true  # Enable/disable automatic text corrections
+  custom_corrections: {}  # Add custom corrections like {"wrong phrase": "correct phrase"}
+  
   # Legacy Faster-Whisper parameters below are kept for backward compatibility
   # but are not used by Vosk. You can safely ignore them.
   model: "base"  # Not used with Vosk

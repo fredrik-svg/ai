@@ -8,11 +8,12 @@ import numpy as np
 import os
 import json
 from vosk import Model, KaldiRecognizer
-from typing import Optional
+from typing import Optional, Dict
 import wave
 import io
 from datetime import datetime
 from pathlib import Path
+from .stt_corrections import STTCorrections
 
 
 class SpeechToText:
@@ -29,6 +30,9 @@ class SpeechToText:
         # Audio recording options
         save_recordings: bool = False,
         recordings_dir: str = "recordings",
+        # Post-processing corrections
+        enable_corrections: bool = True,
+        custom_corrections: Optional[Dict[str, str]] = None,
         # Legacy parameters kept for backward compatibility but not used with Vosk
         model_size: Optional[str] = None,
         device: Optional[str] = None,
@@ -49,6 +53,11 @@ class SpeechToText:
             sample_rate: Audio sample rate (default: 16000 Hz)
             save_recordings: If True, save audio recordings to disk for debugging
             recordings_dir: Directory to save recordings in
+            enable_corrections: If True, apply post-processing corrections to transcribed text
+            custom_corrections: Dictionary of custom corrections {wrong: correct} to add to defaults
+            recordings_dir: Directory to save recordings in
+            enable_corrections: If True, apply post-processing corrections to transcribed text
+            custom_corrections: Dictionary of custom corrections {wrong: correct} to add to defaults
             
         Note: Other parameters are kept for backward compatibility with Faster-Whisper
               but are not used by Vosk.
@@ -59,8 +68,17 @@ class SpeechToText:
         self.sample_rate = sample_rate
         self.save_recordings = save_recordings
         self.recordings_dir = recordings_dir
+        self.enable_corrections = enable_corrections
         self.model: Optional[Model] = None
         self.recognizer: Optional[KaldiRecognizer] = None
+
+        # Initialize corrections engine
+        if self.enable_corrections:
+            self.corrections = STTCorrections(corrections=custom_corrections)
+            self.logger.info("STT post-processing corrections enabled")
+        else:
+            self.corrections = None
+            self.logger.info("STT post-processing corrections disabled")
 
         # Create recordings directory if needed
         if self.save_recordings:
@@ -199,7 +217,17 @@ class SpeechToText:
             result = json.loads(self.recognizer.FinalResult())
             transcription = result.get('text', '').strip()
 
-            self.logger.info(f"Transcription: {transcription}")
+            # Apply post-processing corrections if enabled
+            if self.corrections and transcription:
+                corrected_text, was_corrected = self.corrections.apply_corrections(transcription)
+                if was_corrected:
+                    self.logger.info(f"Original transcription: {transcription}")
+                    self.logger.info(f"Corrected transcription: {corrected_text}")
+                    transcription = corrected_text
+                else:
+                    self.logger.info(f"Transcription: {transcription}")
+            else:
+                self.logger.info(f"Transcription: {transcription}")
 
             return transcription
 
@@ -252,7 +280,18 @@ class SpeechToText:
                 result = json.loads(self.recognizer.FinalResult())
                 transcription = result.get('text', '').strip()
 
-                self.logger.info(f"Transcription: {transcription}")
+                # Apply post-processing corrections if enabled
+                if self.corrections and transcription:
+                    corrected_text, was_corrected = self.corrections.apply_corrections(transcription)
+                    if was_corrected:
+                        self.logger.info(f"Original transcription: {transcription}")
+                        self.logger.info(f"Corrected transcription: {corrected_text}")
+                        transcription = corrected_text
+                    else:
+                        self.logger.info(f"Transcription: {transcription}")
+                else:
+                    self.logger.info(f"Transcription: {transcription}")
+                
                 return transcription
 
         except Exception as e:
