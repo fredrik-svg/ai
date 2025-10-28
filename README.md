@@ -263,16 +263,30 @@ Om rösttranskriptionen är dålig eller missar ord:
      model: "small"  # Bättre noggrannhet men kräver mer minne och CPU
    ```
 
-4. **Anpassa initial_prompt**: Ändra kontexten för att passa din användning
+4. **Anpassa initial_prompt för svenska**: Lägg till vanliga svenska ord och fraser
    ```yaml
    stt:
-     initial_prompt: "Detta är hemautomation kommando på svenska."
+     initial_prompt: "Detta är en konversation på svenska med vardagliga fraser och meningar."
    ```
 
-5. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
+5. **Aktivera condition_on_previous_text**: För bättre sammanhang mellan meningar
+   ```yaml
+   stt:
+     condition_on_previous_text: true  # Använd tidigare text som kontext
+   ```
+
+6. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
    ```bash
    arecord -d 5 -f cd test.wav && aplay test.wav
    ```
+
+**Tips för bästa svenska igenkänning**:
+- Tala tydligt och i normal hastighet
+- Undvik dialektala ord om möjligt, eller lägg till dem i initial_prompt
+- För specialiserade domäner (t.ex. hemautomation), anpassa initial_prompt:
+  ```yaml
+  initial_prompt: "Detta är hemautomation kommandon på svenska. Tänd lampan. Stäng av värmen."
+  ```
 
 ### ONNX Runtime GPU-varningar
 Om du ser varningar om GPU-enheter som inte hittas (t.ex. "GPU device discovery failed"):

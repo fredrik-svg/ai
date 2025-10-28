@@ -24,7 +24,11 @@ stt:
   
   # Initial prompt to guide the model for better Swedish recognition
   # This helps the model understand context and improves accuracy for Swedish
-  initial_prompt: "Detta är en konversation på svenska."  # "This is a conversation in Swedish."
+  # Include common Swedish words and sentence structures to prime the model
+  initial_prompt: "Detta är en konversation på svenska med vardagliga fraser och meningar."  # "This is a conversation in Swedish with everyday phrases and sentences."
+  
+  # Conditioning on previous text improves continuity and accuracy for longer sentences
+  condition_on_previous_text: true  # Use previous segments as context for better sentence flow
   
   # Voice Activity Detection (VAD) filtering
   vad_filter: true  # Enable VAD to filter out silence

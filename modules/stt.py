@@ -23,11 +23,12 @@ class SpeechToText:
         language: str = "sv",
         device: str = "cpu",
         compute_type: str = "int8",
-        beam_size: int = 5,
+        beam_size: int = 8,
         temperature: float = 0.0,
         initial_prompt: Optional[str] = None,
         vad_filter: bool = True,
-        vad_min_silence_duration: int = 500
+        vad_min_silence_duration: int = 500,
+        condition_on_previous_text: bool = True
     ):
         """
         Initialize the STT engine.
@@ -42,6 +43,7 @@ class SpeechToText:
             initial_prompt: Optional prompt to guide transcription
             vad_filter: Whether to use VAD filtering
             vad_min_silence_duration: Minimum silence duration in ms for VAD
+            condition_on_previous_text: Use previous text as context for better continuity
         """
         self.logger = logging.getLogger(__name__)
         self.model_size = model_size
@@ -53,6 +55,7 @@ class SpeechToText:
         self.initial_prompt = initial_prompt
         self.vad_filter = vad_filter
         self.vad_min_silence_duration = vad_min_silence_duration
+        self.condition_on_previous_text = condition_on_previous_text
         self.model: Optional[WhisperModel] = None
 
         self.logger.info(f"Initializing Faster-Whisper with model: {model_size}, "
@@ -99,7 +102,8 @@ class SpeechToText:
             'language': self.language,
             'beam_size': self.beam_size,
             'temperature': self.temperature,
-            'vad_filter': self.vad_filter
+            'vad_filter': self.vad_filter,
+            'condition_on_previous_text': self.condition_on_previous_text
         }
         
         # Add VAD parameters if VAD is enabled
