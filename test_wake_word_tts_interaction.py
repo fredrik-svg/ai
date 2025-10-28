@@ -7,8 +7,9 @@ This test simulates the scenario where TTS could trigger wake word detection.
 import sys
 import os
 import time
-from unittest.mock import Mock, MagicMock, patch
 import logging
+from unittest.mock import Mock, MagicMock, patch
+import numpy as np
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -106,7 +107,6 @@ def test_speaking_flag_prevents_wake_word_detection():
     assistant.wake_word_buffer = b''
     
     # Create mock audio data
-    import numpy as np
     mock_audio = np.zeros((512, 1), dtype=np.int16)
     
     print("\n1. Testing normal wake word detection (not speaking)")
@@ -149,49 +149,45 @@ def test_speaking_flag_prevents_wake_word_detection():
     assistant.speaking = False
     assistant.wake_word_buffer = b'some_old_audio_data'
     
-    # Mock TTS to track when it's called
+    # Mock TTS to track when it's called and verify speaking flag
     call_order = []
+    speaking_flag_during_call = []
     
     def mock_speak(text):
         call_order.append('speak_start')
-        if not assistant.speaking:
-            raise AssertionError("Speaking flag should be True during TTS")
+        # Record the speaking flag state during the call
+        speaking_flag_during_call.append(assistant.speaking)
         call_order.append('speak_end')
         return True
     
     assistant.tts.speak = mock_speak
     
     # Call the handler
-    try:
-        assistant._handle_mqtt_response("Test response")
-        
-        # Verify speaking flag is cleared after TTS
-        if not assistant.speaking:
-            print("✓ Speaking flag is cleared after TTS")
-            test3a_pass = True
-        else:
-            print("✗ FAIL: Speaking flag not cleared after TTS")
-            test3a_pass = False
-        
-        # Verify wake word buffer is cleared after TTS
-        if len(assistant.wake_word_buffer) == 0:
-            print("✓ Wake word buffer cleared after TTS")
-            test3b_pass = True
-        else:
-            print("✗ FAIL: Wake word buffer not cleared after TTS")
-            test3b_pass = False
-        
-        # Verify call order
-        if call_order == ['speak_start', 'speak_end']:
-            print("✓ TTS was called with speaking flag set")
-            test3c_pass = True
-        else:
-            print("✗ FAIL: Unexpected call order")
-            test3c_pass = False
-            
-    except AssertionError as e:
-        print(f"✗ FAIL: {e}")
-        test3a_pass = test3b_pass = test3c_pass = False
+    assistant._handle_mqtt_response("Test response")
+    
+    # Verify speaking flag is cleared after TTS
+    if not assistant.speaking:
+        print("✓ Speaking flag is cleared after TTS")
+        test3a_pass = True
+    else:
+        print("✗ FAIL: Speaking flag not cleared after TTS")
+        test3a_pass = False
+    
+    # Verify wake word buffer is cleared after TTS
+    if len(assistant.wake_word_buffer) == 0:
+        print("✓ Wake word buffer cleared after TTS")
+        test3b_pass = True
+    else:
+        print("✗ FAIL: Wake word buffer not cleared after TTS")
+        test3b_pass = False
+    
+    # Verify call order and that speaking flag was set during TTS
+    if call_order == ['speak_start', 'speak_end'] and speaking_flag_during_call == [True]:
+        print("✓ TTS was called with speaking flag set")
+        test3c_pass = True
+    else:
+        print("✗ FAIL: Speaking flag was not properly set during TTS call")
+        test3c_pass = False
     
     print("\n4. Testing speaking flag cleared even if TTS fails")
     print("-" * 70)
@@ -200,14 +196,20 @@ def test_speaking_flag_prevents_wake_word_detection():
     assistant.speaking = False
     
     def mock_speak_with_error(text):
-        raise Exception("TTS error")
+        raise RuntimeError("TTS error")
     
     assistant.tts.speak = mock_speak_with_error
     
     try:
         assistant._handle_mqtt_response("Test response")
-    except Exception:
-        pass  # Expected to raise
+    except RuntimeError as e:
+        # Expected to raise RuntimeError from TTS
+        if str(e) == "TTS error":
+            pass  # This is the expected error
+        else:
+            print(f"✗ FAIL: Unexpected error: {e}")
+            test4_pass = False
+            return test4_pass
     
     # Verify speaking flag is still cleared
     if not assistant.speaking:
