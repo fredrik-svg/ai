@@ -98,9 +98,14 @@ class SpeechToText:
             return ""
 
         try:
-            # Ensure audio is float32
+            # Ensure audio is float32 normalized to [-1, 1]
             if audio_data.dtype != np.float32:
-                audio_data = audio_data.astype(np.float32)
+                if audio_data.dtype == np.int16:
+                    # Normalize int16 to float32 range [-1, 1]
+                    audio_data = audio_data.astype(np.float32) / 32767.0
+                else:
+                    # For other types, just convert to float32
+                    audio_data = audio_data.astype(np.float32)
             
             # Convert float32 audio to int16 for Vosk
             # Vosk expects int16 PCM data
