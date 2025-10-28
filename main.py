@@ -60,6 +60,8 @@ class VoiceAssistant:
         self.speaking = False  # Flag to indicate TTS is speaking
         self.audio_buffer = []
         self.wake_word_buffer = b''  # Buffer for accumulating audio for wake word detection
+        self.listening_start_time = None  # Track when listening started for timeout
+        self.listening_timeout = 10.0  # Maximum time in listening mode (seconds)
         
         self.logger.info("Voice Assistant initialized")
 
@@ -109,6 +111,11 @@ class VoiceAssistant:
                 keyword_path=wake_config.get('keyword_path')
             )
             self.wake_word.start()
+            # Verify it's actually initialized
+            if self.wake_word.porcupine is None:
+                raise RuntimeError("Wake word detector failed to initialize - porcupine is None")
+            self.logger.info(f"✓ Wake word detector ready - frame_length: {self.wake_word.frame_length}, "
+                           f"sample_rate: {self.wake_word.sample_rate}")
 
             # Initialize VAD
             self.logger.info("Initializing Voice Activity Detector...")
@@ -118,6 +125,7 @@ class VoiceAssistant:
                 frame_duration=vad_config.get('frame_duration', 30),
                 mode=vad_config.get('mode', 3)
             )
+            self.logger.info(f"✓ VAD ready - frame_size: {self.vad.frame_size} samples")
 
             # Initialize STT
             self.logger.info("Initializing Speech-to-Text...")
@@ -138,6 +146,10 @@ class VoiceAssistant:
                 condition_on_previous_text=stt_config.get('condition_on_previous_text', True)
             )
             self.stt.load_model()
+            # Verify model is loaded
+            if not self.stt.is_loaded():
+                raise RuntimeError("STT model failed to load")
+            self.logger.info("✓ STT ready")
 
             # Initialize MQTT
             self.logger.info("Initializing MQTT Handler...")
@@ -214,6 +226,14 @@ class VoiceAssistant:
 
         # Convert to bytes for wake word detection
         audio_bytes = indata.tobytes()
+        
+        # Log audio callback activity periodically (every 100 callbacks ~= every 6.4 seconds at 1024 samples/16kHz)
+        if not hasattr(self, '_callback_count'):
+            self._callback_count = 0
+        self._callback_count += 1
+        if self._callback_count % 100 == 0:
+            self.logger.debug(f"Audio callback active - count: {self._callback_count}, "
+                            f"speaking: {self.speaking}, listening: {self.listening}")
 
         # Skip wake word detection if TTS is currently speaking
         # This prevents the assistant's own voice from triggering the wake word
@@ -222,31 +242,37 @@ class VoiceAssistant:
 
         # If not listening, check for wake word
         if not self.listening:
+            # Ensure wake word detector is initialized
+            if not self.wake_word or not self.wake_word.porcupine:
+                self.logger.debug("Wake word detector not ready")
+                return
+            
             # Accumulate audio in buffer for wake word detection
             # Note: Audio callback receives chunks of size 'chunk_size' (default 1024 samples),
             # but Porcupine requires exact frames of 512 samples. We buffer and extract correctly sized frames.
             self.wake_word_buffer += audio_bytes
             
             # Process with wake word detector when we have enough data
-            if self.wake_word:
-                required_bytes = self.wake_word.frame_length * 2  # 2 bytes per sample (16-bit)
+            required_bytes = self.wake_word.frame_length * 2  # 2 bytes per sample (16-bit)
+            
+            # Safeguard: prevent buffer from growing too large (keep max 4 frames worth)
+            max_buffer_size = required_bytes * 4
+            if len(self.wake_word_buffer) > max_buffer_size:
+                # Keep only the most recent data
+                self.wake_word_buffer = self.wake_word_buffer[-max_buffer_size:]
+            
+            # Process all complete frames in the buffer
+            while len(self.wake_word_buffer) >= required_bytes:
+                # Extract one frame
+                frame = self.wake_word_buffer[:required_bytes]
+                self.wake_word_buffer = self.wake_word_buffer[required_bytes:]
                 
-                # Safeguard: prevent buffer from growing too large (keep max 4 frames worth)
-                max_buffer_size = required_bytes * 4
-                if len(self.wake_word_buffer) > max_buffer_size:
-                    # Keep only the most recent data
-                    self.wake_word_buffer = self.wake_word_buffer[-max_buffer_size:]
-                
-                # Process all complete frames in the buffer
-                while len(self.wake_word_buffer) >= required_bytes:
-                    # Extract one frame
-                    frame = self.wake_word_buffer[:required_bytes]
-                    self.wake_word_buffer = self.wake_word_buffer[required_bytes:]
-                    
-                    # Process the frame
+                # Process the frame
+                try:
                     if self.wake_word.process_audio(frame):
                         self.logger.info("Wake word detected! Starting to listen...")
                         self.listening = True
+                        self.listening_start_time = time.time()  # Record start time
                         self.audio_buffer = []
                         self.wake_word_buffer = b''  # Clear wake word buffer
                         self.vad.reset()
@@ -254,20 +280,49 @@ class VoiceAssistant:
                         # Play acknowledgment sound (optional)
                         # You could play a beep here
                         break  # Stop processing more frames once detected
+                except Exception as e:
+                    self.logger.error(f"Error processing wake word frame: {e}")
+                    # Continue processing next frame
+                    continue
         else:
             # Listening mode - use VAD and record
-            if self.vad:
-                is_speaking, voice_changed = self.vad.process_frame(audio_bytes)
-                
-                if is_speaking:
-                    # Add to buffer
-                    self.audio_buffer.append(indata.copy())
-                elif voice_changed and not is_speaking:
-                    # Voice stopped - process the recorded audio
-                    self.logger.info("Voice activity stopped. Processing...")
-                    self._process_recorded_audio()
+            
+            # Check for timeout to prevent getting stuck in listening mode
+            if self.listening_start_time is not None:
+                elapsed_time = time.time() - self.listening_start_time
+                if elapsed_time > self.listening_timeout:
+                    self.logger.warning(f"Listening timeout after {elapsed_time:.1f}s, resetting...")
+                    # Process any recorded audio before resetting
+                    if self.audio_buffer:
+                        self._process_recorded_audio()
+                    # Reset to wake word detection mode
                     self.listening = False
+                    self.listening_start_time = None
                     self.audio_buffer = []
+                    self.vad.reset()
+                    return
+            
+            if self.vad:
+                try:
+                    is_speaking, voice_changed = self.vad.process_frame(audio_bytes)
+                    
+                    if is_speaking:
+                        # Add to buffer
+                        self.audio_buffer.append(indata.copy())
+                    elif voice_changed and not is_speaking:
+                        # Voice stopped - process the recorded audio
+                        self.logger.info("Voice activity stopped. Processing...")
+                        self._process_recorded_audio()
+                        self.listening = False
+                        self.listening_start_time = None
+                        self.audio_buffer = []
+                except Exception as e:
+                    self.logger.error(f"Error in VAD processing: {e}")
+                    # Reset to safe state on error
+                    self.listening = False
+                    self.listening_start_time = None
+                    self.audio_buffer = []
+                    self.vad.reset()
 
     def _process_recorded_audio(self) -> None:
         """Process the recorded audio buffer."""
