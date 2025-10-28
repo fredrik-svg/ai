@@ -57,6 +57,7 @@ class VoiceAssistant:
         # State
         self.running = False
         self.listening = False
+        self.speaking = False  # Flag to indicate TTS is speaking
         self.audio_buffer = []
         self.wake_word_buffer = b''  # Buffer for accumulating audio for wake word detection
         
@@ -187,7 +188,16 @@ class VoiceAssistant:
         
         # Speak the response
         if self.tts:
-            self.tts.speak(response)
+            # Set speaking flag to prevent wake word detection during TTS
+            self.speaking = True
+            try:
+                self.tts.speak(response)
+            finally:
+                # Always clear speaking flag, even if TTS fails
+                self.speaking = False
+                # Clear wake word buffer to prevent TTS audio from triggering detection
+                self.wake_word_buffer = b''
+                self.logger.debug("TTS finished, wake word detection resumed")
 
     def _audio_callback(self, indata, frames, time_info, status):
         """
@@ -204,6 +214,11 @@ class VoiceAssistant:
 
         # Convert to bytes for wake word detection
         audio_bytes = indata.tobytes()
+
+        # Skip wake word detection if TTS is currently speaking
+        # This prevents the assistant's own voice from triggering the wake word
+        if self.speaking:
+            return
 
         # If not listening, check for wake word
         if not self.listening:

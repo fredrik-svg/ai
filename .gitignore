@@ -50,6 +50,7 @@ test_*.py
 !test_stt_microphone.py
 !test_stt_dtype_conversion.py
 !test_integration_main_audio.py
+!test_wake_word_tts_interaction.py
 tests/
 
 # Distribution
