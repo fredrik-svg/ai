@@ -276,7 +276,21 @@ Om du har svårt att få respons på wake word:
 ### STT (Speech-to-Text) kvalitetsproblem
 Om rösttranskriptionen är dålig eller missar ord:
 
-1. **Spara och lyssna på inspelningarna**: Aktivera audio-inspelning i `config.yaml` för att spara alla inspelningar:
+1. **Audio enhancement är aktiverad som standard**: Systemet normaliserar nu automatiskt ljudvolym och kvalitet före transkription. Detta hjälper med:
+   - Låg mikrofonvolym
+   - Inkonsekvent ljudnivå
+   - Förbättrad igenkänning av svag/tyst tal
+   
+   Du kan justera inställningar i `config.yaml`:
+   ```yaml
+   stt:
+     enable_audio_enhancement: true  # Aktivera audio normalisering (rekommenderas)
+     target_rms: 0.1  # Mål-RMS (högre = högre volym, 0.05-0.2 rekommenderas)
+     target_peak: 0.95  # Maximal ljudnivå för att undvika klippning
+     min_rms_threshold: 0.001  # Lägsta acceptabla ljudnivå
+   ```
+
+2. **Spara och lyssna på inspelningarna**: Aktivera audio-inspelning i `config.yaml` för att spara alla inspelningar:
    ```yaml
    stt:
      save_recordings: true  # Spara alla inspelningar för felsökning
@@ -287,17 +301,17 @@ Om rösttranskriptionen är dålig eller missar ord:
    aplay recordings/recording_YYYYMMDD_HHMMSS.wav
    ```
    Detta hjälper dig att identifiera om problemet är:
-   - Mikrofonvolym för låg
+   - Mikrofonvolym för låg (audio enhancement hjälper med detta)
    - För mycket bakgrundsljud
    - Dålig talartydlighet
    - Modellen känner inte igen språket
 
-2. **Testa med test-skriptet**: Använd `test_stt_microphone.py` med `--save-audio` och `--play-audio`:
+3. **Testa med test-skriptet**: Använd `test_stt_microphone.py` med `--save-audio` och `--play-audio`:
    ```bash
    python test_stt_microphone.py --save-audio --play-audio
    ```
 
-3. **Använd större Vosk-modell**: Byt från small till den större svenska modellen
+4. **Använd större Vosk-modell**: Byt från small till den större svenska modellen
    ```yaml
    stt:
      model_path: "models/vosk/vosk-model-sv-se-0.22"  # Större modell (~1.5GB)
@@ -311,12 +325,12 @@ Om rösttranskriptionen är dålig eller missar ord:
    cd ../..
    ```
 
-3. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
+5. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
    ```bash
    arecord -d 5 -f cd test.wav && aplay test.wav
    ```
 
-4. **Justera mikrofonens volym**: Öka mikrofonnivån med alsamixer
+6. **Justera mikrofonens volym**: Öka mikrofonnivån med alsamixer
    ```bash
    alsamixer
    # Tryck F4 för capture och justera nivån

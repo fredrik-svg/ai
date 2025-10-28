@@ -139,6 +139,11 @@ class VoiceAssistant:
                 sample_rate=stt_config.get('sample_rate', 16000),
                 save_recordings=stt_config.get('save_recordings', False),
                 recordings_dir=stt_config.get('recordings_dir', 'recordings'),
+                # Audio enhancement options
+                enable_audio_enhancement=stt_config.get('enable_audio_enhancement', True),
+                target_rms=stt_config.get('target_rms', 0.1),
+                target_peak=stt_config.get('target_peak', 0.95),
+                min_rms_threshold=stt_config.get('min_rms_threshold', 0.001),
                 # Legacy Faster-Whisper parameters for backward compatibility
                 model_size=stt_config.get('model', 'base'),
                 device=stt_config.get('device', 'cpu'),
