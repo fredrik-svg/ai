@@ -100,7 +100,9 @@ sudo apt-get install -y \
     portaudio19-dev \
     libopenblas-dev \
     ffmpeg \
-    git
+    git \
+    unzip \
+    wget
 
 # Skapa virtuell miljö
 python3 -m venv venv
@@ -197,18 +199,46 @@ HTTP Request/OpenAI (generera svar)
 MQTT Send (assistant/output)
 ```
 
-### 4. Ladda ner TTS-modeller
+### 4. Ladda ner modeller
 
-#### Svensk modell (standard)
+#### Vosk STT-modell (Svenska)
 
 ```bash
+mkdir -p models/vosk
+cd models/vosk
+
+# Ladda ner svensk Vosk-modell (liten, snabb, ca 40MB)
+wget https://alphacephei.com/vosk/models/vosk-model-small-sv-rhasspy-0.15.zip
+unzip vosk-model-small-sv-rhasspy-0.15.zip
+rm vosk-model-small-sv-rhasspy-0.15.zip
+
+# Alternativ: Större modell för bättre noggrannhet (ca 1.5GB)
+# wget https://alphacephei.com/vosk/models/vosk-model-sv-se-0.22.zip
+# unzip vosk-model-sv-se-0.22.zip
+# rm vosk-model-sv-se-0.22.zip
+
+cd ../..
+```
+
+Uppdatera sedan `config.yaml` om du vill använda den större modellen:
+```yaml
+stt:
+  model_path: "models/vosk/vosk-model-sv-se-0.22"
+```
+
+#### TTS-modeller
+
+##### Svensk modell (standard)
+
+```bash
+mkdir -p models/piper
 cd models/piper
 wget https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx
 wget https://huggingface.co/rhasspy/piper-voices/resolve/main/sv/sv_SE/lisa/medium/sv_SE-lisa-medium.onnx.json
 cd ../..
 ```
 
-#### Alternativa språk
+##### Alternativa språk
 
 För andra språk, besök: https://huggingface.co/rhasspy/piper-voices
 

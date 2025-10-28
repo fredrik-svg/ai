@@ -7,7 +7,7 @@ En helt lokal, röststyrd AI-assistent som körs på Raspberry Pi 5. Systemet ka
 - **Lokal bearbetning**: All röstbearbetning sker lokalt på Pi:n
 - **Wake Word Detection**: Aktiveras med "Hey Genio" (eller anpassat ord)
 - **Voice Activity Detection (VAD)**: Intelligent detektering av tal
-- **Speech-to-Text (STT)**: Lokal transkribering med Whisper/Faster-Whisper
+- **Speech-to-Text (STT)**: Lokal transkribering med Vosk
 - **MQTT Integration**: Kommunicerar med n8n via HiveMQ Cloud
 - **Text-to-Speech (TTS)**: Lokal talsyntes med Piper
 - **Privacy-first**: Ingen röstdata skickas till molnet
@@ -20,7 +20,7 @@ Systemet består av fem huvudmoduler:
 |-------|----------|-----------|
 | **Wake Word** | Detekterar aktiveringsord | Porcupine |
 | **VAD** | Avgör när användaren talar | WebRTC VAD / Silero VAD |
-| **STT** | Transkriberar tal till text | Faster-Whisper |
+| **STT** | Transkriberar tal till text | Vosk |
 | **Dialog/MQTT** | Kommunicerar med n8n | Paho MQTT |
 | **TTS** | Syntetiserar svar till tal | Piper |
 
@@ -73,10 +73,22 @@ Registrera dig på [Picovoice Console](https://console.picovoice.ai/) för att f
 3. Placera den i projektets katalog (t.ex. `models/wake_words/`)
 4. Uppdatera `keyword_path` i `config.yaml` med sökvägen till din `.ppn`-fil
 
-#### Faster-Whisper modell
+#### Vosk STT modell (Svenska)
 ```bash
-# Modellen laddas ner automatiskt vid första körningen
-# Rekommenderad modell för Pi 5: base eller small
+mkdir -p models/vosk
+cd models/vosk
+
+# Ladda ner svensk Vosk-modell (liten, snabb, ca 40MB)
+wget https://alphacephei.com/vosk/models/vosk-model-small-sv-rhasspy-0.15.zip
+unzip vosk-model-small-sv-rhasspy-0.15.zip
+rm vosk-model-small-sv-rhasspy-0.15.zip
+
+# Alternativ: Större modell för bättre noggrannhet (ca 1.5GB)
+# wget https://alphacephei.com/vosk/models/vosk-model-sv-se-0.22.zip
+# unzip vosk-model-sv-se-0.22.zip
+# rm vosk-model-sv-se-0.22.zip
+
+cd ../..
 ```
 
 #### Piper TTS modell
@@ -117,16 +129,11 @@ vad:
   sample_rate: 16000
   frame_duration: 30  # ms
   
-# Speech to Text
+# Speech to Text (Vosk)
 stt:
-  model: "base"  # tiny, base, small, medium, large
+  model_path: "models/vosk/vosk-model-small-sv-rhasspy-0.15"  # Sökväg till Vosk-modell
   language: "sv"  # svenska
-  device: "cpu"
-  beam_size: 8  # Strålstorlek för avkodning (högre = bättre kvalitet men långsammare)
-  temperature: 0.0  # Temperatur för sampling (0.0 = deterministisk)
-  initial_prompt: "Detta är en konversation på svenska."  # Ledtråd för bättre svensk igenkänning
-  vad_filter: true  # Använd VAD för att filtrera bort tystnad
-  vad_min_silence_duration: 700  # Minsta tystnadsvaraktighet i ms
+  sample_rate: 16000  # Samplingsfrekvens i Hz
 
 # MQTT / n8n Integration
 mqtt:
@@ -245,48 +252,37 @@ Om du har svårt att få respons på wake word:
 ### STT (Speech-to-Text) kvalitetsproblem
 Om rösttranskriptionen är dålig eller missar ord:
 
-1. **Öka beam_size**: Högre värde ger bättre kvalitet men långsammare transkribering
+1. **Använd större Vosk-modell**: Byt från small till den större svenska modellen
    ```yaml
    stt:
-     beam_size: 10  # Standard: 8, prova 10-12 för ännu bättre kvalitet
+     model_path: "models/vosk/vosk-model-sv-se-0.22"  # Större modell (~1.5GB)
+   ```
+   Ladda ner den större modellen:
+   ```bash
+   cd models/vosk
+   wget https://alphacephei.com/vosk/models/vosk-model-sv-se-0.22.zip
+   unzip vosk-model-sv-se-0.22.zip
+   rm vosk-model-sv-se-0.22.zip
+   cd ../..
    ```
 
-2. **Justera VAD-parametrar**: Om tal klipps av för tidigt
-   ```yaml
-   stt:
-     vad_min_silence_duration: 1000  # Öka från 700ms till 1000ms
-   ```
-
-3. **Använd större modell**: Byt från "base" till "small" eller "medium"
-   ```yaml
-   stt:
-     model: "small"  # Bättre noggrannhet men kräver mer minne och CPU
-   ```
-
-4. **Anpassa initial_prompt för svenska**: Lägg till vanliga svenska ord och fraser
-   ```yaml
-   stt:
-     initial_prompt: "Detta är en konversation på svenska med vardagliga fraser och meningar."
-   ```
-
-5. **Aktivera condition_on_previous_text**: För bättre sammanhang mellan meningar
-   ```yaml
-   stt:
-     condition_on_previous_text: true  # Använd tidigare text som kontext
-   ```
-
-6. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
+2. **Kontrollera mikrofonkvalitet**: Testa med `arecord` och lyssna på inspelningen
    ```bash
    arecord -d 5 -f cd test.wav && aplay test.wav
    ```
 
-**Tips för bästa svenska igenkänning**:
+3. **Justera mikrofonens volym**: Öka mikrofonnivån med alsamixer
+   ```bash
+   alsamixer
+   # Tryck F4 för capture och justera nivån
+   ```
+
+**Tips för bästa svenska igenkänning med Vosk**:
 - Tala tydligt och i normal hastighet
-- Undvik dialektala ord om möjligt, eller lägg till dem i initial_prompt
-- För specialiserade domäner (t.ex. hemautomation), anpassa initial_prompt:
-  ```yaml
-  initial_prompt: "Detta är hemautomation kommandon på svenska. Tänd lampan. Stäng av värmen."
-  ```
+- Vosk fungerar bäst med ren, tydlig ljudinspelning
+- Undvik bakgrundsljud och eko om möjligt
+- Den mindre modellen (small) är snabbare men mindre noggrann
+- Den större modellen (0.22) ger bättre resultat för komplexa meningar
 
 ### ONNX Runtime GPU-varningar
 Om du ser varningar om GPU-enheter som inte hittas (t.ex. "GPU device discovery failed"):
@@ -296,9 +292,8 @@ GPU device discovery failed: device_discovery.cc:89 ReadFileContents
 Failed to open file: "/sys/class/drm/card1/device/vendor"
 ```
 
-Detta är normalt på CPU-baserade enheter som Raspberry Pi och kan ignoreras. 
-Systemet är konfigurerat att undertrycka dessa varningar automatiskt, men de 
-kan fortfarande visas vid första körningen. De påverkar inte funktionaliteten.
+**OBS:** Med Vosk-implementationen bör dessa varningar inte visas längre, 
+eftersom Vosk inte använder ONNX Runtime. Detta var ett problem med Faster-Whisper.
 
 ### MQTT-anslutningsproblem
 - Kontrollera att HiveMQ Cloud-credentials är korrekta
@@ -306,9 +301,10 @@ kan fortfarande visas vid första körningen. De påverkar inte funktionaliteten
 - Testa anslutning med MQTT Explorer eller mosquitto_pub/sub
 
 ### Prestandaproblem
-- Använd mindre Whisper-modell (tiny eller base)
-- Överklockade Pi 5 om möjligt
+- Använd den mindre Vosk-modellen (vosk-model-small-sv-rhasspy-0.15)
+- Vosk är optimerad för Raspberry Pi och använder mindre resurser än Whisper
 - Säkerställ tillräcklig kylning
+- Om Pi:n är överbelastad, stäng av onödiga processer
 
 ## 📝 Licens
 

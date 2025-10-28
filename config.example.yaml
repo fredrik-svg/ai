@@ -11,28 +11,27 @@ vad:
   frame_duration: 30  # milliseconds
   mode: 3  # 0=Quality, 1=Low Bitrate, 2=Aggressive, 3=Very Aggressive
   
-# Speech to Text
+# Speech to Text (using Vosk)
 stt:
-  model: "base"  # Options: tiny, base, small, medium, large-v2, large-v3
+  # Path to the Vosk model directory
+  # Download from: https://alphacephei.com/vosk/models
+  # For Swedish: vosk-model-small-sv-rhasspy-0.15 (recommended for Pi 5)
+  # or vosk-model-sv-se-0.22 (larger, more accurate)
+  model_path: "models/vosk/vosk-model-small-sv-rhasspy-0.15"
   language: "sv"  # Swedish
-  device: "cpu"  # cpu or cuda
-  compute_type: "int8"  # int8, int8_float16, float16, float32
+  sample_rate: 16000  # Audio sample rate in Hz
   
-  # Transcription quality parameters
-  beam_size: 8  # Beam size for decoding (5-10 recommended, higher = better quality but slower)
-  temperature: 0.0  # Temperature for sampling (0.0 = deterministic, more consistent results)
-  
-  # Initial prompt to guide the model for better Swedish recognition
-  # This helps the model understand context and improves accuracy for Swedish
-  # Include common Swedish words and sentence structures to prime the model
-  initial_prompt: "Detta är en konversation på svenska med vardagliga fraser och meningar."  # "This is a conversation in Swedish with everyday phrases and sentences."
-  
-  # Conditioning on previous text improves continuity and accuracy for longer sentences
-  condition_on_previous_text: true  # Use previous segments as context for better sentence flow
-  
-  # Voice Activity Detection (VAD) filtering
-  vad_filter: true  # Enable VAD to filter out silence
-  vad_min_silence_duration: 700  # Minimum silence duration in ms (increased from 500ms to avoid cutting off speech)
+  # Legacy Faster-Whisper parameters below are kept for backward compatibility
+  # but are not used by Vosk. You can safely ignore them.
+  model: "base"  # Not used with Vosk
+  device: "cpu"  # Not used with Vosk
+  compute_type: "int8"  # Not used with Vosk
+  beam_size: 8  # Not used with Vosk
+  temperature: 0.0  # Not used with Vosk
+  initial_prompt: "Detta är en konversation på svenska med vardagliga fraser och meningar."  # Not used with Vosk
+  condition_on_previous_text: true  # Not used with Vosk
+  vad_filter: true  # Not used with Vosk
+  vad_min_silence_duration: 700  # Not used with Vosk
 
 # MQTT / n8n Integration
 mqtt:
