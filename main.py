@@ -122,8 +122,11 @@ class VoiceAssistant:
             self.logger.info("Initializing Speech-to-Text...")
             stt_config = self.config['stt']
             self.stt = SpeechToText(
-                model_size=stt_config.get('model', 'base'),
+                model_path=stt_config.get('model_path', 'models/vosk/vosk-model-small-sv-rhasspy-0.15'),
                 language=stt_config.get('language', 'sv'),
+                sample_rate=stt_config.get('sample_rate', 16000),
+                # Legacy Faster-Whisper parameters for backward compatibility
+                model_size=stt_config.get('model', 'base'),
                 device=stt_config.get('device', 'cpu'),
                 compute_type=stt_config.get('compute_type', 'int8'),
                 beam_size=stt_config.get('beam_size', 8),

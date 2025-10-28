@@ -42,7 +42,9 @@ if command -v apt-get &> /dev/null; then
         portaudio19-dev \
         libopenblas-dev \
         ffmpeg \
-        git
+        git \
+        unzip \
+        wget
     echo "✓ System dependencies installed"
 else
     echo "Warning: apt-get not found. Please install dependencies manually:"
@@ -50,6 +52,7 @@ else
     echo "  - PortAudio development files"
     echo "  - OpenBLAS development files"
     echo "  - FFmpeg"
+    echo "  - unzip and wget"
 fi
 
 echo ""
@@ -86,6 +89,7 @@ echo ""
 # Create models directory
 echo "Creating models directory..."
 mkdir -p models/piper
+mkdir -p models/vosk
 echo "✓ Models directory created"
 echo ""
 
@@ -103,6 +107,41 @@ else
     echo "✓ config.yaml already exists"
     echo ""
 fi
+
+# Download Vosk STT model (Swedish)
+echo "Downloading Vosk STT model (Swedish)..."
+if [ ! -d "models/vosk/vosk-model-small-sv-rhasspy-0.15" ]; then
+    echo "Downloading Swedish Vosk model from alphacephei.com..."
+    cd models/vosk
+    
+    # Download and extract Vosk model
+    if command -v wget &> /dev/null; then
+        wget -q --show-progress https://alphacephei.com/vosk/models/vosk-model-small-sv-rhasspy-0.15.zip \
+            2>/dev/null || echo "Warning: Could not download Vosk model. Please download manually from https://alphacephei.com/vosk/models"
+    elif command -v curl &> /dev/null; then
+        curl -L -o vosk-model-small-sv-rhasspy-0.15.zip https://alphacephei.com/vosk/models/vosk-model-small-sv-rhasspy-0.15.zip \
+            2>/dev/null || echo "Warning: Could not download Vosk model. Please download manually from https://alphacephei.com/vosk/models"
+    else
+        echo "Warning: Neither wget nor curl found. Please download Vosk model manually from https://alphacephei.com/vosk/models"
+    fi
+    
+    # Extract if zip file exists
+    if [ -f "vosk-model-small-sv-rhasspy-0.15.zip" ]; then
+        if command -v unzip &> /dev/null; then
+            unzip -q vosk-model-small-sv-rhasspy-0.15.zip
+            rm vosk-model-small-sv-rhasspy-0.15.zip
+            echo "✓ Vosk STT model downloaded and extracted"
+        else
+            echo "Warning: unzip not found. Please extract vosk-model-small-sv-rhasspy-0.15.zip manually"
+        fi
+    fi
+    
+    cd ../..
+else
+    echo "✓ Vosk STT model already exists"
+fi
+
+echo ""
 
 # Download Piper TTS model (Swedish)
 echo "Downloading Piper TTS model (Swedish)..."
@@ -138,10 +177,16 @@ echo ""
 echo "3. Setup HiveMQ Cloud (free tier available):"
 echo "   https://www.hivemq.com/mqtt-cloud-broker/"
 echo ""
-echo "4. Activate the virtual environment:"
+echo "4. Download Vosk model if automatic download failed:"
+echo "   cd models/vosk"
+echo "   wget https://alphacephei.com/vosk/models/vosk-model-small-sv-rhasspy-0.15.zip"
+echo "   unzip vosk-model-small-sv-rhasspy-0.15.zip"
+echo "   cd ../.."
+echo ""
+echo "5. Activate the virtual environment:"
 echo "   source venv/bin/activate"
 echo ""
-echo "5. Run the assistant:"
+echo "6. Run the assistant:"
 echo "   python main.py"
 echo ""
 echo "=================================="

@@ -10,8 +10,7 @@ pvporcupine>=3.0.0
 webrtcvad>=2.0.10
 
 # Speech-to-Text
-faster-whisper>=0.10.0
-torch>=2.0.0
+vosk>=0.3.45
 requests>=2.31.0
 
 # MQTT Client
