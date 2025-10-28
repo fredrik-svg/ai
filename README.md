@@ -8,6 +8,7 @@ En helt lokal, röststyrd AI-assistent som körs på Raspberry Pi 5. Systemet ka
 - **Wake Word Detection**: Aktiveras med "Hey Genio" (eller anpassat ord)
 - **Voice Activity Detection (VAD)**: Intelligent detektering av tal
 - **Speech-to-Text (STT)**: Lokal transkribering med Vosk
+- **STT Auto-korrigeringar**: Automatiska korrigeringar av vanliga feltranskriptioner
 - **MQTT Integration**: Kommunicerar med n8n via HiveMQ Cloud
 - **Text-to-Speech (TTS)**: Lokal talsyntes med Piper
 - **Privacy-first**: Ingen röstdata skickas till molnet
@@ -328,6 +329,39 @@ Om rösttranskriptionen är dålig eller missar ord:
 - Undvik bakgrundsljud och eko om möjligt
 - Den mindre modellen (small) är snabbare men mindre noggrann
 - Den större modellen (0.22) ger bättre resultat för komplexa meningar
+
+#### STT Post-processing korrigeringar
+
+Systemet har inbyggt stöd för automatiska korrigeringar av vanliga feltranskriptioner. Detta hjälper till att fixa kända problem där Vosk feltolkar vissa fraser.
+
+**Exempel**: När du säger "US open" kan Vosk ibland transkribera det som "johannes och den". Korrigeringssystemet fixar automatiskt detta till rätt text.
+
+**Standard korrigeringar som ingår**:
+- "johannes och den" → "US open"
+- "johannes och dem" → "US open"
+- "johannes och de" → "US open"
+- "johannes o den" → "US open"
+- "johannes o dem" → "US open"
+
+**Anpassa korrigeringar i `config.yaml`**:
+```yaml
+stt:
+  enable_corrections: true  # Aktivera/inaktivera korrigeringar
+  custom_corrections:  # Lägg till dina egna korrigeringar
+    "fel fras": "rätt fras"
+    "annat fel": "korrekt text"
+```
+
+**Exempel på användning**:
+1. Om assistenten ofta feltolkar ett specifikt ord eller fras, lägg till det i `custom_corrections`
+2. Korrigeringar är case-insensitive och respekterar ordbegränsningar
+3. Längre fraser matchas först för att undvika konflikter
+4. Sätt `enable_corrections: false` om du vill inaktivera alla korrigeringar
+
+**Testa korrigeringar**:
+```bash
+python -m unittest test_stt_corrections.py
+```
 
 ### ONNX Runtime GPU-varningar
 Om du ser varningar om GPU-enheter som inte hittas (t.ex. "GPU device discovery failed"):

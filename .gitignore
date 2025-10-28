@@ -56,6 +56,8 @@ test_*.py
 !test_integration_main_audio.py
 !test_wake_word_tts_interaction.py
 !test_listening_timeout.py
+!test_stt_corrections.py
+!test_stt_integration_corrections.py
 tests/
 
 # Distribution
