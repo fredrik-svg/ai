@@ -43,7 +43,7 @@ def test_prebuffer_logic():
     
     assert len(audio_buffer) == 5, f"Expected 5 frames in audio_buffer, got {len(audio_buffer)}"
     assert len(pre_buffer) == 0, f"Expected 0 frames in pre_buffer, got {len(pre_buffer)}"
-    assert vad_triggered == True, "Expected vad_triggered to be True"
+    assert vad_triggered, "Expected vad_triggered to be True"
     print(f"✓ Audio buffer now contains {len(audio_buffer)} frames (including pre-buffered)")
     
     # Simulate adding more frames after VAD triggers

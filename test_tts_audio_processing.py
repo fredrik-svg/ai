@@ -66,7 +66,9 @@ def test_silence_trimming():
     
     # Create signal: silence - signal - silence
     silence = np.zeros(silence_samples)
-    signal = np.random.randn(signal_samples) * 0.1  # Low amplitude signal
+    # Use deterministic sine wave instead of random signal for reproducible tests
+    t = np.linspace(0, 0.5, signal_samples)
+    signal = 0.1 * np.sin(2 * np.pi * 440 * t)  # 440 Hz sine wave at 0.1 amplitude
     data = np.concatenate([silence, signal, silence])
     
     print(f"Original length: {len(data)} samples ({len(data)/sample_rate:.3f}s)")
@@ -117,7 +119,9 @@ def test_combined_processing():
     signal_samples = int(0.3 * sample_rate)
     
     silence = np.zeros(silence_samples)
-    signal = np.random.randn(signal_samples) * 0.1
+    # Use deterministic sine wave instead of random signal for reproducible tests
+    t = np.linspace(0, 0.3, signal_samples)
+    signal = 0.1 * np.sin(2 * np.pi * 440 * t)  # 440 Hz sine wave at 0.1 amplitude
     data = np.concatenate([silence, signal, silence])
     
     print(f"Original: {len(data)} samples")
