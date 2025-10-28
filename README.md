@@ -210,6 +210,8 @@ ai/
 ├── config.example.yaml     # Exempel-konfiguration
 ├── requirements.txt        # Python-beroenden
 ├── README.md              # Denna fil
+├── test_stt_microphone.py  # STT-test med mikrofon
+├── TEST_STT_MICROPHONE.md  # Dokumentation för STT-test
 ├── modules/
 │   ├── __init__.py
 │   ├── wake_word.py       # Porcupine wake word detection
@@ -220,6 +222,28 @@ ai/
 └── models/
     └── piper/             # TTS-modeller
 ```
+
+## 🧪 Testning
+
+### Testa STT (Speech-to-Text) med mikrofon
+
+För att testa endast STT-funktionaliteten med mikrofonen, använd det medföljande testskriptet:
+
+```bash
+# Kör grundläggande test (5 sekunders inspelning)
+python test_stt_microphone.py
+
+# Lista tillgängliga mikrofoner
+python test_stt_microphone.py --list-devices
+
+# Använd specifik mikrofon och längre inspelning
+python test_stt_microphone.py --device 2 --duration 10
+
+# Se alla alternativ
+python test_stt_microphone.py --help
+```
+
+För mer information och felsökning, se [TEST_STT_MICROPHONE.md](TEST_STT_MICROPHONE.md).
 
 ## 🐛 Felsökning
 
