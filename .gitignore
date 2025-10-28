@@ -47,6 +47,7 @@ temp/
 
 # Test files
 test_*.py
+!test_stt_microphone.py
 tests/
 
 # Distribution
