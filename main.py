@@ -111,6 +111,11 @@ class VoiceAssistant:
                 keyword_path=wake_config.get('keyword_path')
             )
             self.wake_word.start()
+            # Verify it's actually initialized
+            if self.wake_word.porcupine is None:
+                raise RuntimeError("Wake word detector failed to initialize - porcupine is None")
+            self.logger.info(f"✓ Wake word detector ready - frame_length: {self.wake_word.frame_length}, "
+                           f"sample_rate: {self.wake_word.sample_rate}")
 
             # Initialize VAD
             self.logger.info("Initializing Voice Activity Detector...")
@@ -120,6 +125,7 @@ class VoiceAssistant:
                 frame_duration=vad_config.get('frame_duration', 30),
                 mode=vad_config.get('mode', 3)
             )
+            self.logger.info(f"✓ VAD ready - frame_size: {self.vad.frame_size} samples")
 
             # Initialize STT
             self.logger.info("Initializing Speech-to-Text...")
@@ -140,6 +146,10 @@ class VoiceAssistant:
                 condition_on_previous_text=stt_config.get('condition_on_previous_text', True)
             )
             self.stt.load_model()
+            # Verify model is loaded
+            if not self.stt.is_loaded():
+                raise RuntimeError("STT model failed to load")
+            self.logger.info("✓ STT ready")
 
             # Initialize MQTT
             self.logger.info("Initializing MQTT Handler...")
@@ -216,6 +226,14 @@ class VoiceAssistant:
 
         # Convert to bytes for wake word detection
         audio_bytes = indata.tobytes()
+        
+        # Log audio callback activity periodically (every 100 callbacks ~= every 6.4 seconds at 1024 samples/16kHz)
+        if not hasattr(self, '_callback_count'):
+            self._callback_count = 0
+        self._callback_count += 1
+        if self._callback_count % 100 == 0:
+            self.logger.debug(f"Audio callback active - count: {self._callback_count}, "
+                            f"speaking: {self.speaking}, listening: {self.listening}")
 
         # Skip wake word detection if TTS is currently speaking
         # This prevents the assistant's own voice from triggering the wake word
