@@ -29,6 +29,11 @@ class SpeechToText:
         # Audio recording options
         save_recordings: bool = False,
         recordings_dir: str = "recordings",
+        # Audio enhancement options
+        enable_audio_enhancement: bool = True,
+        target_rms: float = 0.1,
+        target_peak: float = 0.95,
+        min_rms_threshold: float = 0.001,
         # Legacy parameters kept for backward compatibility but not used with Vosk
         model_size: Optional[str] = None,
         device: Optional[str] = None,
@@ -49,6 +54,10 @@ class SpeechToText:
             sample_rate: Audio sample rate (default: 16000 Hz)
             save_recordings: If True, save audio recordings to disk for debugging
             recordings_dir: Directory to save recordings in
+            enable_audio_enhancement: If True, apply audio normalization (default: True)
+            target_rms: Target RMS level for normalization (default: 0.1)
+            target_peak: Target peak level to prevent clipping (default: 0.95)
+            min_rms_threshold: Minimum RMS to consider audio valid (default: 0.001)
             
         Note: Other parameters are kept for backward compatibility with Faster-Whisper
               but are not used by Vosk.
@@ -59,6 +68,10 @@ class SpeechToText:
         self.sample_rate = sample_rate
         self.save_recordings = save_recordings
         self.recordings_dir = recordings_dir
+        self.enable_audio_enhancement = enable_audio_enhancement
+        self.target_rms = target_rms
+        self.target_peak = target_peak
+        self.min_rms_threshold = min_rms_threshold
         self.model: Optional[Model] = None
         self.recognizer: Optional[KaldiRecognizer] = None
 
@@ -68,7 +81,8 @@ class SpeechToText:
             self.logger.info(f"Audio recordings will be saved to: {self.recordings_dir}")
 
         self.logger.info(f"Initializing Vosk STT with model: {model_path}, "
-                         f"language: {language}, sample_rate: {sample_rate}")
+                         f"language: {language}, sample_rate: {sample_rate}, "
+                         f"audio_enhancement: {enable_audio_enhancement}")
 
     def load_model(self) -> None:
         """
@@ -145,6 +159,59 @@ class SpeechToText:
             self.logger.error(f"Error saving audio to WAV: {e}")
             return ""
 
+    def _normalize_audio_quality(self, audio_data: np.ndarray) -> np.ndarray:
+        """
+        Normalize audio quality for better STT accuracy.
+        
+        This function performs several audio enhancements:
+        1. RMS normalization to ensure consistent loudness
+        2. Peak normalization to prevent clipping
+        3. Dynamic range optimization
+        
+        Args:
+            audio_data: Audio data as numpy array (float32, normalized to [-1, 1])
+            
+        Returns:
+            Enhanced audio data
+        """
+        # Skip normalization if disabled
+        if not self.enable_audio_enhancement:
+            return audio_data
+            
+        # Make a copy to avoid modifying original
+        audio = audio_data.copy()
+        
+        # Calculate audio statistics for debugging
+        peak = np.max(np.abs(audio))
+        rms = np.sqrt(np.mean(audio ** 2))
+        
+        self.logger.debug(f"Original audio - Peak: {peak:.4f}, RMS: {rms:.4f}")
+        
+        # Skip normalization if audio is too quiet (likely silence or noise)
+        if rms < self.min_rms_threshold:
+            self.logger.warning(f"Audio RMS too low (< {self.min_rms_threshold}), may be silence or noise")
+            return audio
+        
+        # Apply RMS normalization to target level
+        normalization_factor = self.target_rms / rms
+        audio = audio * normalization_factor
+        
+        # Apply peak normalization to prevent clipping
+        peak_after_rms = np.max(np.abs(audio))
+        if peak_after_rms > self.target_peak:
+            peak_factor = self.target_peak / peak_after_rms
+            audio = audio * peak_factor
+            self.logger.debug(f"Applied peak limiting: {peak_factor:.4f}")
+        
+        # Final statistics
+        final_peak = np.max(np.abs(audio))
+        final_rms = np.sqrt(np.mean(audio ** 2))
+        
+        self.logger.debug(f"Enhanced audio - Peak: {final_peak:.4f}, RMS: {final_rms:.4f}, "
+                         f"Gain: {normalization_factor:.2f}x")
+        
+        return audio
+
     def transcribe_audio(
         self,
         audio_data: np.ndarray,
@@ -165,10 +232,6 @@ class SpeechToText:
             return ""
 
         try:
-            # Save audio recording if enabled
-            if self.save_recordings:
-                self.save_audio_to_wav(audio_data, sample_rate)
-            
             # Ensure audio is float32 normalized to [-1, 1]
             if audio_data.dtype != np.float32:
                 if audio_data.dtype == np.int16:
@@ -178,12 +241,20 @@ class SpeechToText:
                     # For other types, just convert to float32
                     audio_data = audio_data.astype(np.float32)
             
+            # Apply audio quality normalization for better STT accuracy
+            audio_data = self._normalize_audio_quality(audio_data)
+            
+            # Save audio recording if enabled (save the enhanced version)
+            if self.save_recordings:
+                self.save_audio_to_wav(audio_data, sample_rate)
+            
             # Convert float32 audio to int16 for Vosk
             # Vosk expects int16 PCM data
             audio_int16 = (audio_data * 32767).astype(np.int16)
             audio_bytes = audio_int16.tobytes()
 
-            self.logger.debug(f"Transcribing audio of length {len(audio_data)} samples")
+            self.logger.debug(f"Transcribing audio of length {len(audio_data)} samples "
+                            f"({len(audio_data) / sample_rate:.2f} seconds)")
 
             # Reset recognizer for new audio
             self.recognizer = KaldiRecognizer(self.model, sample_rate)
@@ -224,7 +295,7 @@ class SpeechToText:
         try:
             self.logger.info(f"Transcribing file: {audio_file_path}")
 
-            # Open WAV file
+            # Open WAV file and read all audio data
             with wave.open(audio_file_path, 'rb') as wf:
                 # Verify format
                 if wf.getnchannels() != 1:
@@ -236,24 +307,36 @@ class SpeechToText:
                 if wf.getframerate() != self.sample_rate:
                     self.logger.warning(f"Audio sample rate {wf.getframerate()} != {self.sample_rate}")
 
-                # Reset recognizer
-                self.recognizer = KaldiRecognizer(self.model, wf.getframerate())
-                self.recognizer.SetWords(True)
+                # Read all frames
+                frames = wf.readframes(wf.getnframes())
+                
+            # Convert to numpy array and normalize
+            audio_int16 = np.frombuffer(frames, dtype=np.int16)
+            audio_float32 = audio_int16.astype(np.float32) / 32767.0
+            
+            # Apply audio quality normalization for better STT accuracy
+            audio_float32 = self._normalize_audio_quality(audio_float32)
+            
+            # Convert back to int16 for Vosk
+            audio_int16 = (audio_float32 * 32767).astype(np.int16)
+            audio_bytes = audio_int16.tobytes()
 
-                # Process audio in chunks
-                chunk_size = 4000
-                while True:
-                    data = wf.readframes(chunk_size)
-                    if len(data) == 0:
-                        break
-                    self.recognizer.AcceptWaveform(data)
+            # Reset recognizer
+            self.recognizer = KaldiRecognizer(self.model, self.sample_rate)
+            self.recognizer.SetWords(True)
 
-                # Get final result
-                result = json.loads(self.recognizer.FinalResult())
-                transcription = result.get('text', '').strip()
+            # Process audio in chunks
+            chunk_size = 4000
+            for i in range(0, len(audio_bytes), chunk_size):
+                chunk = audio_bytes[i:i + chunk_size]
+                self.recognizer.AcceptWaveform(chunk)
 
-                self.logger.info(f"Transcription: {transcription}")
-                return transcription
+            # Get final result
+            result = json.loads(self.recognizer.FinalResult())
+            transcription = result.get('text', '').strip()
+
+            self.logger.info(f"Transcription: {transcription}")
+            return transcription
 
         except Exception as e:
             self.logger.error(f"Error transcribing file: {e}")
