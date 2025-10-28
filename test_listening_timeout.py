@@ -58,6 +58,15 @@ def mock_zeros(shape, dtype=None):
 
 mock_np.zeros = mock_zeros
 mock_np.int16 = 'int16'
+mock_np.float32 = 'float32'
+
+# Mock astype for dtype conversion
+class MockArrayWithAstype(MockArray):
+    def astype(self, dtype):
+        return MockArrayWithAstype(self.data, dtype, self.shape)
+
+# Update MockArray to support astype
+MockArray.astype = lambda self, dtype: MockArrayWithAstype(self.data, dtype, self.shape)
 
 from main import VoiceAssistant
 
@@ -148,8 +157,8 @@ def test_listening_timeout():
     # Mock STT
     assistant.stt = Mock()
     
-    # Create mock audio data
-    mock_audio = MockArray([0] * 512, dtype='int16')
+    # Create mock audio data (float32 as in updated main.py)
+    mock_audio = MockArray([0.0] * 512, dtype='float32')
     
     print("\n1. Testing timeout detection and reset")
     print("-" * 70)
