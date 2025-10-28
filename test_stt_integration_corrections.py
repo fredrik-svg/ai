@@ -8,6 +8,7 @@ import unittest
 import logging
 import os
 import sys
+import numpy as np
 from unittest.mock import Mock, patch
 from pathlib import Path
 
@@ -88,7 +89,6 @@ class TestSTTWithCorrections(unittest.TestCase):
         stt.recognizer = mock_recognizer
         
         # Transcribe (mock audio data)
-        import numpy as np
         audio_data = np.zeros(16000, dtype=np.float32)  # 1 second of silence
         result = stt.transcribe_audio(audio_data)
         
@@ -113,7 +113,6 @@ class TestSTTWithCorrections(unittest.TestCase):
         stt.recognizer = mock_recognizer
         
         # Transcribe (mock audio data)
-        import numpy as np
         audio_data = np.zeros(16000, dtype=np.float32)
         result = stt.transcribe_audio(audio_data)
         
@@ -138,7 +137,6 @@ class TestSTTWithCorrections(unittest.TestCase):
         stt.recognizer = mock_recognizer
         
         # Transcribe (mock audio data)
-        import numpy as np
         audio_data = np.zeros(16000, dtype=np.float32)
         result = stt.transcribe_audio(audio_data)
         
@@ -185,7 +183,6 @@ class TestSTTCorrectionsEndToEnd(unittest.TestCase):
             ('{"text": "johannes och dem spelas i new york"}', "US open spelas i new york"),
         ]
         
-        import numpy as np
         audio_data = np.zeros(16000, dtype=np.float32)
         
         for mock_result, expected_output in test_cases:
